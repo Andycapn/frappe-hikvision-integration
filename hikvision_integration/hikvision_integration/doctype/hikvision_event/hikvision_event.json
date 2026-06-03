@@ -6,6 +6,7 @@
  "engine": "InnoDB",
  "field_order": [
   "device_serial",
+  "device",
   "event_serial_no",
   "employee_no",
   "employee_name",
@@ -20,6 +21,13 @@
    "fieldname": "device_serial",
    "fieldtype": "Data",
    "label": "Device Serial",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "device",
+   "fieldtype": "Link",
+   "label": "Device",
+   "options": "Hikvision Device",
    "in_list_view": 1
   },
   {
