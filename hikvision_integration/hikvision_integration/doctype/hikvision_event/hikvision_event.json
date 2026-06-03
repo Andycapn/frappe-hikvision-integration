@@ -1,0 +1,99 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2026-06-03 13:06:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "device_serial",
+  "event_serial_no",
+  "employee_no",
+  "employee_name",
+  "attendance_status",
+  "verify_mode",
+  "event_time",
+  "processed",
+  "raw_event"
+ ],
+ "fields": [
+  {
+   "fieldname": "device_serial",
+   "fieldtype": "Data",
+   "label": "Device Serial",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "event_serial_no",
+   "fieldtype": "Int",
+   "label": "Event Serial No",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "employee_no",
+   "fieldtype": "Data",
+   "label": "Employee No",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "employee_name",
+   "fieldtype": "Data",
+   "label": "Employee Name",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "attendance_status",
+   "fieldtype": "Data",
+   "label": "Attendance Status",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "verify_mode",
+   "fieldtype": "Data",
+   "label": "Verify Mode"
+  },
+  {
+   "fieldname": "event_time",
+   "fieldtype": "Datetime",
+   "label": "Event Time",
+   "in_list_view": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "processed",
+   "fieldtype": "Check",
+   "label": "Processed"
+  },
+  {
+   "fieldname": "raw_event",
+   "fieldtype": "Code",
+   "label": "Raw Event",
+   "options": "JSON"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-06-03 13:06:00.000000",
+ "modified_by": "Administrator",
+ "module": "Hikvision Integration",
+ "name": "Hikvision Event",
+ "naming_rule": "Expression",
+ "autoname": "format:HIK-EV-{device_serial}-{event_serial_no}",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}
