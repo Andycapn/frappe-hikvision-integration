@@ -1,0 +1,22 @@
+version = 1
+revision = 3
+requires-python = ">=3.14"
+
+[[package]]
+name = "frappe"
+version = "0.0.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/09/90/95760eafe1bbcb7372f98e1bdff9c39ff49d3b759cdd8597acafe89c647c/frappe-0.0.1.tar.gz", hash = "sha256:e398102759d0b8fa8ea30d0c1ae3564bba097e4c13e15b71b3a31bf66e8faf9c", size = 790, upload-time = "2023-02-14T13:52:00.72Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/1d/fb/7c71729c28a592a43788008340ca16c961024a2dc0b8b7200e3c30a765b9/frappe-0.0.1-py3-none-any.whl", hash = "sha256:33d14952f5f24bb65b0b578edc6d659a1995bb8d8f3a5b4375f3f5dbb5b5690c", size = 1317, upload-time = "2023-02-14T13:51:59.134Z" },
+]
+
+[[package]]
+name = "hikvision-integration"
+source = { editable = "." }
+dependencies = [
+    { name = "frappe" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "frappe", specifier = ">=0.0.1" }]
