@@ -7,11 +7,26 @@ def webhook():
 	payload = frappe.request.get_json()
 
 	if not payload:
+		# Some devices might not send application/json header
+		try:
+			data = frappe.request.get_data(as_text=True)
+			if data:
+				payload = json.loads(data)
+		except Exception:
+			pass
+
+	if not payload:
+		# Log that we failed to get a payload
+		frappe.log_error(
+			title=_("Hikvision Webhook No Payload"),
+			message=f"Headers: {frappe.request.headers}\nData: {frappe.request.get_data(as_text=True)}"
+		)
 		return {"status": "error", "message": "No payload received"}
 
-	# Log the raw payload for debugging
-	frappe.logger().info(
-		json.dumps(payload, indent=2)
+	# Log the raw payload for debugging in Error Log so it's visible in Desk
+	frappe.log_error(
+		title=_("Hikvision Debug Payload"),
+		message=json.dumps(payload, indent=2)
 	)
 
 	event_name = f"HIK-EV-{payload.get('shortSerialNumber')}-{payload.get('AccessControllerEvent', {}).get('serialNo')}"
