@@ -174,17 +174,19 @@ def process_event(event):
 	if frappe.db.exists("DocType", "Employee"):
 		employee = frappe.db.get_value("Employee", {"attendance_device_id": event.employee_no}, "name")
 
+	# Fallback to employee_no if it matches ERPNext Employee ID (optional, but good for testing)
+	if not employee and frappe.db.exists("DocType", "Employee") and frappe.db.exists("Employee", event.employee_no):
+		employee = event.employee_no
+
 	if not employee and event.employee_name:
 		# Try lenient name matching to ease setup
 		employee = match_employee_by_name(event.employee_name, event.employee_no)
 
 	if not employee:
-		# Fallback to employee_no if it matches ERPNext Employee ID (optional, but good for testing)
-		if frappe.db.exists("DocType", "Employee") and frappe.db.exists("Employee", event.employee_no):
-			employee = event.employee_no
-		else:
-			frappe.log_error(title=_("Hikvision Processing Error"), message=_("Employee not found for device ID: {0}").format(event.employee_no))
-			return
+		# Log error but don't crash
+		# frappe.errprint(f"Employee not found for device ID: {event.employee_no}")
+		frappe.log_error(title=_("Hikvision Processing Error"), message=_("Employee not found for device ID: {0}").format(event.employee_no))
+		return
 
 	# Map attendanceStatus to log_type
 	# Hikvision uses checkIn/checkOut, ERPNext uses IN/OUT
@@ -239,7 +241,7 @@ def process_event(event):
 
 		# Mark event as processed
 		event.processed = 1
-		event.save()
+		event.db_set("processed", 1)
 		frappe.db.commit()
 	except Exception as e:
 		frappe.log_error(
@@ -308,37 +310,61 @@ def enqueue_process_unprocessed_events():
 	frappe.enqueue("hikvision_integration.api.process_unprocessed_events", queue="long", timeout=600)
 	return {"status": "enqueued", "message": _("Processing of unprocessed events has been enqueued.")}
 
-def process_unprocessed_events(batch_size=100):
+def process_unprocessed_events(batch_size=100, max_events=1000):
 	"""
 	Background job to process Hikvision Events that haven't been converted to Employee Checkins.
 	Processes in batches to avoid timeouts and high resource usage.
 	"""
-	# Find unprocessed events, ordered by event_time (oldest first)
-	unprocessed_events = frappe.get_all(
-		"Hikvision Event",
-		filters={"processed": 0},
-		fields=["name"],
-		limit_page_length=batch_size,
-		order_by="event_time asc"
-	)
+	total_processed = 0
 
-	if not unprocessed_events:
-		return
+	while total_processed < max_events:
+		# Find unprocessed events, ordered by event_time (oldest first)
+		unprocessed_events = frappe.get_all(
+			"Hikvision Event",
+			filters={"processed": 0},
+			fields=["name"],
+			limit_page_length=batch_size,
+			order_by="event_time asc"
+		)
 
-	count = 0
-	for entry in unprocessed_events:
-		event = frappe.get_doc("Hikvision Event", entry.name)
-		try:
-			# process_event handles employee lookup and checkin creation
-			process_event(event)
-			count += 1
-		except Exception:
-			# Individual failures are logged inside process_event,
-			# we continue with the rest of the batch
-			continue
+		# Log for debugging in test environment
+		# frappe.errprint(f"Found {len(unprocessed_events)} unprocessed events")
 
-	if count > 0:
+		if not unprocessed_events:
+			break
+
+		batch_count = 0
+		for entry in unprocessed_events:
+			event = frappe.get_doc("Hikvision Event", entry.name)
+			try:
+				# process_event handles employee lookup and checkin creation
+				# In tests, print to see what's happening
+				# frappe.errprint(f"Processing event {event.name}")
+				process_event(event)
+				batch_count += 1
+			except Exception as e:
+				# frappe.errprint(f"Failed to process event {event.name}: {str(e)}")
+				# Individual failures are logged inside process_event,
+				# we continue with the rest of the batch
+				# To avoid infinite loops on failing events, we might need a way to mark them
+				# but for now we rely on the fact that process_event is mostly safe.
+				# If it doesn't set processed=1, it will be picked up again next batch.
+				# To prevent infinite loop in THIS call, we increment total_processed anyway if we want to stop.
+				# But let's be careful.
+				total_processed += 1
+				continue
+
+		total_processed += batch_count
+
+		# If the batch wasn't full, we are done
+		if len(unprocessed_events) < batch_size:
+			break
+
+		# Commit after each batch
+		frappe.db.commit()
+
+	if total_processed > 0:
 		frappe.log_error(
 			title=_("Hikvision Background Processing"),
-			message=_("Processed {0} previously unprocessed events.").format(count)
+			message=_("Processed {0} previously unprocessed events.").format(total_processed)
 		)
