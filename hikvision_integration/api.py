@@ -180,8 +180,15 @@ def process_event(event):
 			"device_id": event.device_serial
 		}
 
+		# Handle mandatory geolocation fields if they exist (ERPNext feature)
+		meta = frappe.get_meta("Employee Checkin")
+		if meta.has_field("latitude") and meta.get_field("latitude").reqd:
+			checkin_data["latitude"] = 0.0
+		if meta.has_field("longitude") and meta.get_field("longitude").reqd:
+			checkin_data["longitude"] = 0.0
+
 		# Only add attendance_device_id if it's a known field (it might be custom)
-		if frappe.get_meta("Employee Checkin").has_field("attendance_device_id"):
+		if meta.has_field("attendance_device_id"):
 			checkin_data["attendance_device_id"] = event.employee_no
 
 		checkin = frappe.get_doc(checkin_data)
@@ -255,3 +262,46 @@ def match_employee_by_name(employee_name, device_id):
 			frappe.log_error(title=_("Hikvision Auto-Link Error"), message=str(e))
 
 	return None
+
+@frappe.whitelist()
+def enqueue_process_unprocessed_events():
+	"""
+	Whitelisted method to manually trigger background processing of events.
+	"""
+	frappe.enqueue("hikvision_integration.api.process_unprocessed_events", queue="long", timeout=600)
+	return {"status": "enqueued", "message": _("Processing of unprocessed events has been enqueued.")}
+
+def process_unprocessed_events(batch_size=100):
+	"""
+	Background job to process Hikvision Events that haven't been converted to Employee Checkins.
+	Processes in batches to avoid timeouts and high resource usage.
+	"""
+	# Find unprocessed events, ordered by event_time (oldest first)
+	unprocessed_events = frappe.get_all(
+		"Hikvision Event",
+		filters={"processed": 0},
+		fields=["name"],
+		limit_page_length=batch_size,
+		order_by="event_time asc"
+	)
+
+	if not unprocessed_events:
+		return
+
+	count = 0
+	for entry in unprocessed_events:
+		event = frappe.get_doc("Hikvision Event", entry.name)
+		try:
+			# process_event handles employee lookup and checkin creation
+			process_event(event)
+			count += 1
+		except Exception:
+			# Individual failures are logged inside process_event,
+			# we continue with the rest of the batch
+			continue
+
+	if count > 0:
+		frappe.log_error(
+			title=_("Hikvision Background Processing"),
+			message=_("Processed {0} previously unprocessed events.").format(count)
+		)

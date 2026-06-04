@@ -149,23 +149,11 @@ app_license = "mit"
 # Scheduled Tasks
 # ---------------
 
-# scheduler_events = {
-# 	"all": [
-# 		"hikvision_integration.tasks.all"
-# 	],
-# 	"daily": [
-# 		"hikvision_integration.tasks.daily"
-# 	],
-# 	"hourly": [
-# 		"hikvision_integration.tasks.hourly"
-# 	],
-# 	"weekly": [
-# 		"hikvision_integration.tasks.weekly"
-# 	],
-# 	"monthly": [
-# 		"hikvision_integration.tasks.monthly"
-# 	],
-# }
+scheduler_events = {
+	"hourly": [
+		"hikvision_integration.api.process_unprocessed_events"
+	]
+}
 
 # Testing
 # -------
