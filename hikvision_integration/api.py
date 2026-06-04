@@ -58,15 +58,35 @@ def webhook():
 		message=json.dumps(payload, indent=2)
 	)
 
-	event_name = f"HIK-EV-{payload.get('shortSerialNumber')}-{payload.get('AccessControllerEvent', {}).get('serialNo')}"
+	# Handle heartbeat events
+	if payload.get("eventType") == "heartBeat":
+		device_serial = payload.get("shortSerialNumber")
+		if device_serial:
+			if not frappe.db.exists("Hikvision Device", device_serial):
+				device_doc = frappe.get_doc({
+					"doctype": "Hikvision Device",
+					"device_serial": device_serial,
+					"device_name": f"Device {device_serial}",
+					"ip_address": payload.get("ipAddress")
+				})
+				device_doc.insert(ignore_permissions=True)
+				frappe.db.commit()
+
+			frappe.db.set_value("Hikvision Device", device_serial, "last_heartbeat", frappe.utils.now_datetime())
+			frappe.db.commit()
+		return {"status": "received", "message": "Heartbeat updated"}
+
+	event_data = payload.get("AccessControllerEvent", {})
+	device_serial = payload.get("shortSerialNumber") or "UNKNOWN"
+	serial_no = event_data.get("serialNo") or frappe.utils.generate_hash(length=10)
+
+	event_name = f"HIK-EV-{device_serial}-{serial_no}"
 	if frappe.db.exists("Hikvision Event", event_name):
 		# We check if it's processed. If not, maybe we should try processing again?
 		# But usually, it means it's already in the system.
 		return {"status": "received", "message": "Duplicate event ignored"}
 
 	# Burst protection: Check for same employee, same device, within last 5 seconds
-	event_data = payload.get("AccessControllerEvent", {})
-	device_serial = payload.get("shortSerialNumber")
 	employee_no = event_data.get("employeeNoString")
 
 	if device_serial and employee_no:
