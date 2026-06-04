@@ -5,6 +5,7 @@ from frappe import _
 @frappe.whitelist(allow_guest=True)
 def webhook():
 	payload = None
+	image_file = None
 
 	# 1. Try to get JSON from request (standard JSON body)
 	try:
@@ -22,6 +23,10 @@ def webhook():
 				if event_json:
 					payload = json.loads(event_json)
 					break
+
+			# Check for image in files
+			if "Picture" in frappe.request.files:
+				image_file = frappe.request.files["Picture"]
 		except Exception:
 			pass
 
@@ -48,14 +53,12 @@ def webhook():
 			pass
 
 	if not payload:
-		# Log that we failed to get a payload
 		frappe.log_error(
 			title=_("Hikvision Webhook No Payload"),
 			message=f"Headers: {frappe.request.headers}\nForm Keys: {list(frappe.request.form.keys()) if frappe.request.form else 'None'}\nData Preview: {frappe.request.get_data(as_text=True)[:500]}"
 		)
 		return {"status": "error", "message": "No payload received"}
 
-	# Log the raw payload for debugging in Error Log so it's visible in Desk
 	frappe.log_error(
 		title=_("Hikvision Debug Payload"),
 		message=json.dumps(payload, indent=2)
@@ -82,7 +85,6 @@ def webhook():
 	event_data = payload.get("AccessControllerEvent", {})
 
 	# Filter out events with undefined attendance status
-	# Some terminals send these for non-attendance related access events
 	if event_data.get("attendanceStatus") in ["undefined", None] and payload.get("eventType") != "heartBeat":
 		return {"status": "received", "message": "Non-attendance event ignored"}
 
@@ -91,8 +93,6 @@ def webhook():
 
 	event_name = f"HIK-EV-{device_serial}-{serial_no}"
 	if frappe.db.exists("Hikvision Event", event_name):
-		# We check if it's processed. If not, maybe we should try processing again?
-		# But usually, it means it's already in the system.
 		return {"status": "received", "message": "Duplicate event ignored"}
 
 	# Burst protection: Check for same employee, same device, within last 5 seconds
@@ -111,18 +111,18 @@ def webhook():
 
 	try:
 		doc = create_hikvision_event(payload)
-		process_event(doc)
+		process_event(doc, image_file=image_file)
 	except Exception as e:
 		frappe.log_error(title=_("Hikvision Webhook Error"), message=frappe.get_traceback())
 		return {"status": "error", "message": str(e)}
 
 	return {"status": "received"}
 
+
 def create_hikvision_event(payload):
 	event_data = payload.get("AccessControllerEvent", {})
 	device_serial = payload.get("shortSerialNumber")
 
-	# Link to Hikvision Device if it exists, otherwise create it
 	device = None
 	if device_serial:
 		if not frappe.db.exists("Hikvision Device", device_serial):
@@ -136,7 +136,6 @@ def create_hikvision_event(payload):
 			frappe.db.commit()
 
 		device = device_serial
-		# Update last heartbeat
 		frappe.db.set_value("Hikvision Device", device_serial, "last_heartbeat", frappe.utils.now_datetime())
 
 	event_time = payload.get("dateTime")
@@ -162,35 +161,40 @@ def create_hikvision_event(payload):
 	frappe.db.commit()
 	return doc
 
-def process_event(event):
+
+def process_event(event, image_file=None):
 	"""
-	Process Hikvision Event and create Employee Checkin
+	Process Hikvision Event and create Employee Checkin.
 	"""
 	if not event.employee_no:
 		return
 
-	# Find Employee by attendance_device_id
+	# 1. Find Employee by attendance_device_id (primary, most reliable)
 	employee = None
 	if frappe.db.exists("DocType", "Employee"):
 		employee = frappe.db.get_value("Employee", {"attendance_device_id": event.employee_no}, "name")
 
-	# Fallback to employee_no if it matches ERPNext Employee ID (optional, but good for testing)
+	# 2. Fallback: employee_no matches ERPNext Employee ID directly
 	if not employee and frappe.db.exists("DocType", "Employee") and frappe.db.exists("Employee", event.employee_no):
 		employee = event.employee_no
 
+	# 3. Fallback: lenient name matching (auto-links on success)
 	if not employee and event.employee_name:
-		# Try lenient name matching to ease setup
 		employee = match_employee_by_name(event.employee_name, event.employee_no)
 
 	if not employee:
-		# Log error but don't crash
-		# frappe.errprint(f"Employee not found for device ID: {event.employee_no}")
-		frappe.log_error(title=_("Hikvision Processing Error"), message=_("Employee not found for device ID: {0}").format(event.employee_no))
+		frappe.log_error(
+			title=_("Hikvision Processing Error"),
+			message=_("Employee not found for device ID: {0}").format(event.employee_no)
+		)
 		return
 
-	# Map attendanceStatus to log_type
-	# Hikvision uses checkIn/checkOut, ERPNext uses IN/OUT
-	# Possible Hikvision values: checkIn, checkOut, breakIn, breakOut, overtimeIn, overtimeOut
+	# Update profile picture if image was sent with the event
+	if image_file:
+		update_employee_image(employee, image_file)
+
+	# Map Hikvision attendanceStatus to ERPNext log_type
+	# Hikvision: checkIn, checkOut, breakIn, breakOut, overtimeIn, overtimeOut
 	status_map = {
 		"checkIn": "IN",
 		"checkOut": "OUT",
@@ -217,37 +221,32 @@ def process_event(event):
 			"device_id": event.device_serial
 		}
 
-		# Handle mandatory geolocation fields if they exist (ERPNext feature)
-		# Some environments (like Frappe Cloud) may have validations that require these
-		# even if they aren't marked as mandatory in the DocType itself.
+		# Only add attendance_device_id if it's a known field (it may be custom)
 		meta = frappe.get_meta("Employee Checkin")
-		if meta.has_field("latitude"):
-			checkin_data["latitude"] = 0.0
-		if meta.has_field("longitude"):
-			checkin_data["longitude"] = 0.0
-
-		# Only add attendance_device_id if it's a known field (it might be custom)
 		if meta.has_field("attendance_device_id"):
 			checkin_data["attendance_device_id"] = event.employee_no
+
+		# Do NOT set latitude/longitude to 0.0 — doing so triggers HRMS's
+		# validate_distance_from_shift_location even when no shift location is configured.
+		# Leave them absent so the validator is not invoked.
 
 		checkin = frappe.get_doc(checkin_data)
 		checkin.insert(ignore_permissions=True)
 
-		# Log success for visibility
 		frappe.log_error(
 			title=_("Hikvision Checkin Success"),
 			message=_("Created Employee Checkin for {0} at {1} ({2})").format(employee, event.event_time, log_type)
 		)
 
-		# Mark event as processed
-		event.processed = 1
 		event.db_set("processed", 1)
 		frappe.db.commit()
+
 	except Exception as e:
 		frappe.log_error(
 			title=_("Hikvision Checkin Error"),
 			message=f"Error: {str(e)}\n\nTraceback: {frappe.get_traceback()}"
 		)
+
 
 def match_employee_by_name(employee_name, device_id):
 	"""
@@ -261,7 +260,6 @@ def match_employee_by_name(employee_name, device_id):
 	if not search_name:
 		return None
 
-	# Get all active employees with their names
 	employees = frappe.db.get_all("Employee", filters={"status": "Active"}, fields=["name", "employee_name"])
 
 	matches = []
@@ -283,15 +281,12 @@ def match_employee_by_name(employee_name, device_id):
 		if search_parts == emp_parts and len(search_parts) > 1:
 			matches.append(emp.name)
 
-	# If exactly one match found, update the employee's attendance_device_id
 	if len(matches) == 1:
 		matched_emp = matches[0]
 		try:
-			# Verify if attendance_device_id field exists
 			if frappe.get_meta("Employee").has_field("attendance_device_id"):
 				frappe.db.set_value("Employee", matched_emp, "attendance_device_id", device_id)
 				frappe.db.commit()
-
 				frappe.log_error(
 					title=_("Hikvision Auto-Link"),
 					message=_("Automatically linked employee {0} ({1}) to device ID {2}").format(matched_emp, employee_name, device_id)
@@ -302,23 +297,87 @@ def match_employee_by_name(employee_name, device_id):
 
 	return None
 
+
+def update_employee_image(employee_name, image_file):
+	"""
+	Update the profile picture of an employee using the image from the Hikvision terminal.
+	Always overwrites the existing image so the photo stays current with the terminal's record.
+	"""
+	try:
+		from frappe.utils.file_manager import save_file
+
+		content = image_file.read()
+		if not content:
+			return
+
+		if isinstance(content, str):
+			content = content.encode("utf-8")
+
+		file_name = f"hik_{employee_name}_{frappe.utils.generate_hash(length=6)}.jpg"
+
+		# Delete existing Hikvision-sourced profile photo to avoid accumulating files
+		existing_files = frappe.get_all(
+			"File",
+			filters={
+				"attached_to_doctype": "Employee",
+				"attached_to_name": employee_name,
+				"file_name": ["like", "hik_%"]
+			},
+			fields=["name"]
+		)
+		for f in existing_files:
+			try:
+				frappe.delete_doc("File", f.name, ignore_permissions=True)
+			except Exception:
+				pass
+
+		saved_file = save_file(
+			file_name,
+			content,
+			"Employee",
+			employee_name,
+			decode=False,
+			is_private=0
+		)
+
+		if frappe.get_meta("Employee").has_field("image"):
+			frappe.db.set_value("Employee", employee_name, "image", saved_file.file_url)
+
+		frappe.db.commit()
+
+		# Reset file pointer in case it's needed again upstream
+		image_file.seek(0)
+
+	except Exception as e:
+		frappe.log_error(
+			title=_("Hikvision Image Update Error"),
+			message=f"Employee: {employee_name}\nError: {str(e)}\n\nTraceback: {frappe.get_traceback()}"
+		)
+
+
 @frappe.whitelist()
 def enqueue_process_unprocessed_events():
 	"""
-	Whitelisted method to manually trigger background processing of events.
+	Whitelisted method to manually trigger background processing of unprocessed events.
+	Call via: /api/method/hikvision_integration.api.enqueue_process_unprocessed_events
 	"""
-	frappe.enqueue("hikvision_integration.api.process_unprocessed_events", queue="long", timeout=600)
+	frappe.enqueue(
+		"hikvision_integration.api.process_unprocessed_events",
+		queue="long",
+		timeout=3600
+	)
 	return {"status": "enqueued", "message": _("Processing of unprocessed events has been enqueued.")}
 
-def process_unprocessed_events(batch_size=100, max_events=1000):
+
+def process_unprocessed_events(batch_size=100):
 	"""
-	Background job to process Hikvision Events that haven't been converted to Employee Checkins.
-	Processes in batches to avoid timeouts and high resource usage.
+	Background job to process all Hikvision Events not yet converted to Employee Checkins.
+	Runs in batches to avoid memory and timeout issues. Processes until none remain.
 	"""
 	total_processed = 0
+	total_failed = 0
 
-	while total_processed < max_events:
-		# Find unprocessed events, ordered by event_time (oldest first)
+	while True:
 		unprocessed_events = frappe.get_all(
 			"Hikvision Event",
 			filters={"processed": 0},
@@ -327,44 +386,32 @@ def process_unprocessed_events(batch_size=100, max_events=1000):
 			order_by="event_time asc"
 		)
 
-		# Log for debugging in test environment
-		# frappe.errprint(f"Found {len(unprocessed_events)} unprocessed events")
-
 		if not unprocessed_events:
 			break
 
-		batch_count = 0
 		for entry in unprocessed_events:
 			event = frappe.get_doc("Hikvision Event", entry.name)
 			try:
-				# process_event handles employee lookup and checkin creation
-				# In tests, print to see what's happening
-				# frappe.errprint(f"Processing event {event.name}")
 				process_event(event)
-				batch_count += 1
-			except Exception as e:
-				# frappe.errprint(f"Failed to process event {event.name}: {str(e)}")
-				# Individual failures are logged inside process_event,
-				# we continue with the rest of the batch
-				# To avoid infinite loops on failing events, we might need a way to mark them
-				# but for now we rely on the fact that process_event is mostly safe.
-				# If it doesn't set processed=1, it will be picked up again next batch.
-				# To prevent infinite loop in THIS call, we increment total_processed anyway if we want to stop.
-				# But let's be careful.
 				total_processed += 1
+			except Exception:
+				# process_event logs its own errors internally
+				# Mark as failed (processed = -1) to prevent this event blocking
+				# future batch runs indefinitely
+				try:
+					event.db_set("processed", -1)
+				except Exception:
+					pass
+				total_failed += 1
 				continue
 
-		total_processed += batch_count
+		frappe.db.commit()
 
-		# If the batch wasn't full, we are done
+		# If we got fewer than a full batch, there are no more events
 		if len(unprocessed_events) < batch_size:
 			break
 
-		# Commit after each batch
-		frappe.db.commit()
-
-	if total_processed > 0:
-		frappe.log_error(
-			title=_("Hikvision Background Processing"),
-			message=_("Processed {0} previously unprocessed events.").format(total_processed)
-		)
+	frappe.log_error(
+		title=_("Hikvision Background Processing Complete"),
+		message=_("Processed: {0} | Failed: {1}").format(total_processed, total_failed)
+	)
