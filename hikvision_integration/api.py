@@ -153,28 +153,55 @@ def process_event(event):
 
 	# Map attendanceStatus to log_type
 	# Hikvision uses checkIn/checkOut, ERPNext uses IN/OUT
-	log_type = "IN" if event.attendance_status == "checkIn" else "OUT"
+	# Possible Hikvision values: checkIn, checkOut, breakIn, breakOut, overtimeIn, overtimeOut
+	status_map = {
+		"checkIn": "IN",
+		"checkOut": "OUT",
+		"breakIn": "IN",
+		"breakOut": "OUT",
+		"overtimeIn": "IN",
+		"overtimeOut": "OUT"
+	}
+	log_type = status_map.get(event.attendance_status, "IN")
 
 	try:
 		if not frappe.db.exists("DocType", "Employee Checkin"):
-			frappe.log_error("Employee Checkin DocType not found. Is erpnext installed?", _("Hikvision Processing Error"))
+			frappe.log_error(
+				title=_("Hikvision Processing Error"),
+				message=_("Employee Checkin DocType not found. Is ERPNext HR installed?")
+			)
 			return
-		checkin = frappe.get_doc({
+
+		checkin_data = {
 			"doctype": "Employee Checkin",
 			"employee": employee,
 			"time": event.event_time,
 			"log_type": log_type,
-			"attendance_device_id": event.employee_no,
 			"device_id": event.device_serial
-		})
+		}
+
+		# Only add attendance_device_id if it's a known field (it might be custom)
+		if frappe.get_meta("Employee Checkin").has_field("attendance_device_id"):
+			checkin_data["attendance_device_id"] = event.employee_no
+
+		checkin = frappe.get_doc(checkin_data)
 		checkin.insert(ignore_permissions=True)
+
+		# Log success for visibility
+		frappe.log_error(
+			title=_("Hikvision Checkin Success"),
+			message=_("Created Employee Checkin for {0} at {1} ({2})").format(employee, event.event_time, log_type)
+		)
 
 		# Mark event as processed
 		event.processed = 1
 		event.save()
 		frappe.db.commit()
 	except Exception as e:
-		frappe.log_error(frappe.get_traceback(), _("Hikvision Checkin Error"))
+		frappe.log_error(
+			title=_("Hikvision Checkin Error"),
+			message=f"Error: {str(e)}\n\nTraceback: {frappe.get_traceback()}"
+		)
 
 def match_employee_by_name(employee_name, device_id):
 	"""
