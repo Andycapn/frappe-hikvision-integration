@@ -201,10 +201,12 @@ def process_event(event):
 		}
 
 		# Handle mandatory geolocation fields if they exist (ERPNext feature)
+		# Some environments (like Frappe Cloud) may have validations that require these
+		# even if they aren't marked as mandatory in the DocType itself.
 		meta = frappe.get_meta("Employee Checkin")
-		if meta.has_field("latitude") and meta.get_field("latitude").reqd:
+		if meta.has_field("latitude"):
 			checkin_data["latitude"] = 0.0
-		if meta.has_field("longitude") and meta.get_field("longitude").reqd:
+		if meta.has_field("longitude"):
 			checkin_data["longitude"] = 0.0
 
 		# Only add attendance_device_id if it's a known field (it might be custom)
