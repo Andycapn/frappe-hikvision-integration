@@ -165,9 +165,12 @@ def create_hikvision_event(payload):
 def process_event(event, image_file=None):
 	"""
 	Process Hikvision Event and create Employee Checkin.
+	Returns True if successfully processed, False otherwise.
 	"""
 	if not event.employee_no:
-		return
+		# No employee number — nothing to do, mark as skipped so it doesn't loop
+		event.db_set("processed", -1)
+		return False
 
 	# 1. Find Employee by attendance_device_id (primary, most reliable)
 	employee = None
@@ -187,7 +190,9 @@ def process_event(event, image_file=None):
 			title=_("Hikvision Processing Error"),
 			message=_("Employee not found for device ID: {0}").format(event.employee_no)
 		)
-		return
+		# Mark as failed so the batch loop doesn't retry endlessly
+		event.db_set("processed", -1)
+		return False
 
 	# Update profile picture if image was sent with the event
 	if image_file:
@@ -211,7 +216,7 @@ def process_event(event, image_file=None):
 				title=_("Hikvision Processing Error"),
 				message=_("Employee Checkin DocType not found. Is ERPNext HR installed?")
 			)
-			return
+			return False
 
 		checkin_data = {
 			"doctype": "Employee Checkin",
@@ -233,19 +238,18 @@ def process_event(event, image_file=None):
 		checkin = frappe.get_doc(checkin_data)
 		checkin.insert(ignore_permissions=True)
 
-		frappe.log_error(
-			title=_("Hikvision Checkin Success"),
-			message=_("Created Employee Checkin for {0} at {1} ({2})").format(employee, event.event_time, log_type)
-		)
-
 		event.db_set("processed", 1)
 		frappe.db.commit()
+		return True
 
 	except Exception as e:
 		frappe.log_error(
 			title=_("Hikvision Checkin Error"),
-			message=f"Error: {str(e)}\n\nTraceback: {frappe.get_traceback()}"
+			message=f"Employee: {employee}\nError: {str(e)}\n\nTraceback: {frappe.get_traceback()}"
 		)
+		event.db_set("processed", -1)
+		frappe.db.commit()
+		return False
 
 
 def match_employee_by_name(employee_name, device_id):
@@ -391,19 +395,10 @@ def process_unprocessed_events(batch_size=100):
 
 		for entry in unprocessed_events:
 			event = frappe.get_doc("Hikvision Event", entry.name)
-			try:
-				process_event(event)
+			if process_event(event):
 				total_processed += 1
-			except Exception:
-				# process_event logs its own errors internally
-				# Mark as failed (processed = -1) to prevent this event blocking
-				# future batch runs indefinitely
-				try:
-					event.db_set("processed", -1)
-				except Exception:
-					pass
+			else:
 				total_failed += 1
-				continue
 
 		frappe.db.commit()
 
