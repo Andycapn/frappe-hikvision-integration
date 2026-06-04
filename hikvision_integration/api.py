@@ -15,10 +15,13 @@ def webhook():
 	# 2. Try to get from multipart form data (Hikvision standard with images)
 	if not payload:
 		try:
-			# Hikvision sends JSON in a form field named 'AccessControllerEvent'
-			event_json = frappe.request.form.get("AccessControllerEvent")
-			if event_json:
-				payload = json.loads(event_json)
+			# Hikvision sends JSON in a form field.
+			# Different models use different names: 'AccessControllerEvent' or 'event_log'
+			for field in ["AccessControllerEvent", "event_log"]:
+				event_json = frappe.request.form.get(field)
+				if event_json:
+					payload = json.loads(event_json)
+					break
 		except Exception:
 			pass
 
@@ -32,7 +35,7 @@ def webhook():
 					# Simple manual extract if Werkzeug failed for some reason
 					parts = data.split("--MIME_boundary")
 					for part in parts:
-						if 'name="AccessControllerEvent"' in part:
+						if 'name="AccessControllerEvent"' in part or 'name="event_log"' in part:
 							# Find the start of JSON
 							content_start = part.find("{")
 							content_end = part.rfind("}")
@@ -77,6 +80,12 @@ def webhook():
 		return {"status": "received", "message": "Heartbeat updated"}
 
 	event_data = payload.get("AccessControllerEvent", {})
+
+	# Filter out events with undefined attendance status
+	# Some terminals send these for non-attendance related access events
+	if event_data.get("attendanceStatus") in ["undefined", None] and payload.get("eventType") != "heartBeat":
+		return {"status": "received", "message": "Non-attendance event ignored"}
+
 	device_serial = payload.get("shortSerialNumber") or "UNKNOWN"
 	serial_no = event_data.get("serialNo") or frappe.utils.generate_hash(length=10)
 
@@ -130,6 +139,12 @@ def create_hikvision_event(payload):
 		# Update last heartbeat
 		frappe.db.set_value("Hikvision Device", device_serial, "last_heartbeat", frappe.utils.now_datetime())
 
+	event_time = payload.get("dateTime")
+	if event_time:
+		event_time = event_time.replace("T", " ").split("+")[0]
+	else:
+		event_time = frappe.utils.now_datetime()
+
 	doc = frappe.get_doc({
 		"doctype": "Hikvision Event",
 		"device_serial": device_serial,
@@ -139,7 +154,7 @@ def create_hikvision_event(payload):
 		"employee_name": event_data.get("name"),
 		"attendance_status": event_data.get("attendanceStatus"),
 		"verify_mode": event_data.get("currentVerifyMode"),
-		"event_time": payload.get("dateTime").replace("T", " ").split("+")[0],
+		"event_time": event_time,
 		"raw_event": json.dumps(payload, indent=2)
 	})
 
