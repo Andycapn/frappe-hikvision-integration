@@ -139,6 +139,10 @@ def process_event(event):
 	if frappe.db.exists("DocType", "Employee"):
 		employee = frappe.db.get_value("Employee", {"attendance_device_id": event.employee_no}, "name")
 
+	if not employee and event.employee_name:
+		# Try lenient name matching to ease setup
+		employee = match_employee_by_name(event.employee_name, event.employee_no)
+
 	if not employee:
 		# Fallback to employee_no if it matches ERPNext Employee ID (optional, but good for testing)
 		if frappe.db.exists("DocType", "Employee") and frappe.db.exists("Employee", event.employee_no):
@@ -171,3 +175,56 @@ def process_event(event):
 		frappe.db.commit()
 	except Exception as e:
 		frappe.log_error(frappe.get_traceback(), _("Hikvision Checkin Error"))
+
+def match_employee_by_name(employee_name, device_id):
+	"""
+	Leniently match an employee by name and update their attendance_device_id.
+	Matches by lowercase and handles reversed name parts (First Last vs Last First).
+	"""
+	if not frappe.db.exists("DocType", "Employee"):
+		return None
+
+	search_name = employee_name.strip().lower()
+	if not search_name:
+		return None
+
+	# Get all active employees with their names
+	employees = frappe.db.get_all("Employee", filters={"status": "Active"}, fields=["name", "employee_name"])
+
+	matches = []
+	search_parts = set(search_name.split())
+
+	for emp in employees:
+		if not emp.employee_name:
+			continue
+
+		emp_name_lower = emp.employee_name.strip().lower()
+		emp_parts = set(emp_name_lower.split())
+
+		# Exact match
+		if search_name == emp_name_lower:
+			matches.append(emp.name)
+			continue
+
+		# Match parts regardless of order (e.g., "John Doe" vs "Doe John")
+		if search_parts == emp_parts and len(search_parts) > 1:
+			matches.append(emp.name)
+
+	# If exactly one match found, update the employee's attendance_device_id
+	if len(matches) == 1:
+		matched_emp = matches[0]
+		try:
+			# Verify if attendance_device_id field exists
+			if frappe.get_meta("Employee").has_field("attendance_device_id"):
+				frappe.db.set_value("Employee", matched_emp, "attendance_device_id", device_id)
+				frappe.db.commit()
+
+				frappe.log_error(
+					title=_("Hikvision Auto-Link"),
+					message=_("Automatically linked employee {0} ({1}) to device ID {2}").format(matched_emp, employee_name, device_id)
+				)
+				return matched_emp
+		except Exception as e:
+			frappe.log_error(title=_("Hikvision Auto-Link Error"), message=str(e))
+
+	return None
