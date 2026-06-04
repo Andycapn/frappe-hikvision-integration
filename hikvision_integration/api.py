@@ -4,14 +4,43 @@ from frappe import _
 
 @frappe.whitelist(allow_guest=True)
 def webhook():
-	payload = frappe.request.get_json()
+	payload = None
 
+	# 1. Try to get JSON from request (standard JSON body)
+	try:
+		payload = frappe.request.get_json()
+	except Exception:
+		pass
+
+	# 2. Try to get from multipart form data (Hikvision standard with images)
 	if not payload:
-		# Some devices might not send application/json header
+		try:
+			# Hikvision sends JSON in a form field named 'AccessControllerEvent'
+			event_json = frappe.request.form.get("AccessControllerEvent")
+			if event_json:
+				payload = json.loads(event_json)
+		except Exception:
+			pass
+
+	# 3. Fallback to raw data parsing if headers are missing/incorrect
+	if not payload:
 		try:
 			data = frappe.request.get_data(as_text=True)
 			if data:
-				payload = json.loads(data)
+				# Check if it's multipart but not parsed correctly
+				if "--MIME_boundary" in data:
+					# Simple manual extract if Werkzeug failed for some reason
+					parts = data.split("--MIME_boundary")
+					for part in parts:
+						if 'name="AccessControllerEvent"' in part:
+							# Find the start of JSON
+							content_start = part.find("{")
+							content_end = part.rfind("}")
+							if content_start != -1 and content_end != -1:
+								payload = json.loads(part[content_start:content_end+1])
+								break
+				else:
+					payload = json.loads(data)
 		except Exception:
 			pass
 
@@ -19,7 +48,7 @@ def webhook():
 		# Log that we failed to get a payload
 		frappe.log_error(
 			title=_("Hikvision Webhook No Payload"),
-			message=f"Headers: {frappe.request.headers}\nData: {frappe.request.get_data(as_text=True)}"
+			message=f"Headers: {frappe.request.headers}\nForm Keys: {list(frappe.request.form.keys()) if frappe.request.form else 'None'}\nData Preview: {frappe.request.get_data(as_text=True)[:500]}"
 		)
 		return {"status": "error", "message": "No payload received"}
 
