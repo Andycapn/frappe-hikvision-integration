@@ -1,0 +1,65 @@
+{
+ "category": "Modules",
+ "charts": [
+  {
+   "chart_name": "Hikvision Events Over Time",
+   "label": "Hikvision Events Over Time"
+  },
+  {
+   "chart_name": "Hikvision Events by Device",
+   "label": "Hikvision Events by Device"
+  }
+ ],
+ "content": "[{\"id\":\"hik_nc_row\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Hikvision Events Today\",\"col\":3}},{\"id\":\"hik_nc_pending\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Hikvision Pending Events\",\"col\":3}},{\"id\":\"hik_nc_failed\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Hikvision Failed Events\",\"col\":3}},{\"id\":\"hik_nc_devices\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Hikvision Devices Online\",\"col\":3}},{\"id\":\"hik_sp1\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"hik_chart1\",\"type\":\"chart\",\"data\":{\"chart_name\":\"Hikvision Events Over Time\",\"col\":8}},{\"id\":\"hik_chart2\",\"type\":\"chart\",\"data\":{\"chart_name\":\"Hikvision Events by Device\",\"col\":4}},{\"id\":\"hik_sp2\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"hik_sc_devices\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Hikvision Device\",\"col\":3}},{\"id\":\"hik_sc_events\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Hikvision Event\",\"col\":3}},{\"id\":\"hik_sp3\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"hik_card_devices\",\"type\":\"card\",\"data\":{\"card_name\":\"Devices\",\"col\":4}},{\"id\":\"hik_card_events\",\"type\":\"card\",\"data\":{\"card_name\":\"Events\",\"col\":4}}]",
+ "creation": "2026-06-26 00:00:00.000000",
+ "doctype": "Workspace",
+ "icon": "shield",
+ "idx": 0,
+ "is_hidden": 0,
+ "label": "Hikvision Integration",
+ "modified": "2026-06-26 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "hikvision_integration",
+ "name": "Hikvision Integration",
+ "number_cards": [
+  {
+   "label": "Hikvision Events Today",
+   "number_card_name": "Hikvision Events Today"
+  },
+  {
+   "label": "Hikvision Pending Events",
+   "number_card_name": "Hikvision Pending Events"
+  },
+  {
+   "label": "Hikvision Failed Events",
+   "number_card_name": "Hikvision Failed Events"
+  },
+  {
+   "label": "Hikvision Devices Online",
+   "number_card_name": "Hikvision Devices Online"
+  }
+ ],
+ "owner": "Administrator",
+ "parent_page": "",
+ "public": 1,
+ "restrict_to_domain": "",
+ "roles": [],
+ "sequence_id": 99,
+ "shortcuts": [
+  {
+   "color": "Blue",
+   "doc_view": "List",
+   "label": "Devices",
+   "link_to": "Hikvision Device",
+   "type": "DocType"
+  },
+  {
+   "color": "Green",
+   "doc_view": "List",
+   "label": "Events",
+   "link_to": "Hikvision Event",
+   "type": "DocType"
+  }
+ ],
+ "title": "Hikvision Integration"
+}

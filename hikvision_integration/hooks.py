@@ -155,6 +155,12 @@ scheduler_events = {
 	]
 }
 
+fixtures = [
+	{"dt": "Workspace",       "filters": [["name", "=", "Hikvision Integration"]]},
+	{"dt": "Number Card",     "filters": [["name", "in", ["Hikvision Events Today", "Hikvision Pending Events", "Hikvision Failed Events", "Hikvision Devices Online"]]]},
+	{"dt": "Dashboard Chart", "filters": [["name", "in", ["Hikvision Events Over Time", "Hikvision Events by Device"]]]}
+]
+
 # Testing
 # -------
 

@@ -202,21 +202,48 @@ def _infer_device_role(device_name):
 
 
 def _handle_heartbeat(payload):
-	device_serial = payload.get("shortSerialNumber")
-	if not device_serial:
-		return {"status": "received", "message": "Heartbeat (no serial)"}
+	"""
+	Heartbeats arrive with the JSON in the AccessControllerEvent form field.
+	The payload is the event object itself — it contains ipAddress and macAddress
+	but NOT shortSerialNumber (that lives one level up in a normal event wrapper).
+	We identify the device by MAC address (stable) with IP as fallback.
+	"""
+	mac = (payload.get("macAddress") or "").upper().replace("-", ":").strip()
+	ip  = (payload.get("ipAddress") or "").strip()
 
-	if not frappe.db.exists("Hikvision Device", device_serial):
-		device_name = payload.get("deviceName") or f"Device {device_serial}"
+	if not mac and not ip:
+		return {"status": "received", "message": "Heartbeat ignored: no device identifier"}
+
+	now = frappe.utils.now_datetime()
+
+	# Try to find existing device by MAC address first, then by IP
+	device_name = None
+	if mac:
+		device_name = frappe.db.get_value("Hikvision Device", {"mac_address": mac}, "name")
+	if not device_name and ip:
+		device_name = frappe.db.get_value("Hikvision Device", {"ip_address": ip}, "name")
+
+	if device_name:
+		update = {"last_heartbeat": now}
+		# Keep IP current in case it changed (DHCP)
+		if ip:
+			update["ip_address"] = ip
+		frappe.db.set_value("Hikvision Device", device_name, update)
+	else:
+		# First contact from this device — auto-register it
+		# Serial unknown at this point; use MAC as the serial placeholder
+		serial = mac or ip
+		label  = f"Device {serial}"
 		frappe.get_doc({
 			"doctype": "Hikvision Device",
-			"device_serial": device_serial,
-			"device_name": device_name,
-			"ip_address": payload.get("ipAddress"),
-			"device_role": _infer_device_role(device_name),
+			"device_serial": serial,
+			"device_name": label,
+			"mac_address": mac,
+			"ip_address": ip,
+			"device_role": "Attendance Gate",  # default; admin should correct
+			"last_heartbeat": now,
 		}).insert(ignore_permissions=True)
 
-	frappe.db.set_value("Hikvision Device", device_serial, "last_heartbeat", frappe.utils.now_datetime())
 	frappe.db.commit()
 	return {"status": "received", "message": "Heartbeat updated"}
 

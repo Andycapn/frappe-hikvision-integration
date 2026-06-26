@@ -9,6 +9,7 @@
   "device_serial",
   "device_role",
   "ip_address",
+  "mac_address",
   "port",
   "is_active",
   "last_heartbeat",
@@ -44,6 +45,12 @@
    "fieldname": "ip_address",
    "fieldtype": "Data",
    "label": "IP Address"
+  },
+  {
+   "fieldname": "mac_address",
+   "fieldtype": "Data",
+   "label": "MAC Address",
+   "description": "Used to identify device from heartbeat packets"
   },
   {
    "fieldname": "port",
