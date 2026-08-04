@@ -10,10 +10,10 @@
   "total_working_days",
   "actual_days_checked_in",
   "missed_days",
-  "gross_pay",
-  "calculated_deduction",
-  "approved_deduction",
-  "approved"
+  "has_historical_checkins",
+  "matched_percentage",
+  "on_leave",
+  "apply_deduction"
  ],
  "fields": [
   {
@@ -49,28 +49,32 @@
    "in_list_view": 1
   },
   {
-   "fieldname": "gross_pay",
-   "fieldtype": "Currency",
-   "label": "Gross Pay",
-   "in_list_view": 1
+   "fieldname": "has_historical_checkins",
+   "fieldtype": "Check",
+   "label": "Has Historical Checkins",
+   "in_list_view": 1,
+   "read_only": 1,
+   "default": "0"
   },
   {
-   "fieldname": "calculated_deduction",
-   "fieldtype": "Currency",
-   "label": "Calculated Deduction",
-   "in_list_view": 1
+   "fieldname": "matched_percentage",
+   "fieldtype": "Percent",
+   "label": "Matched Percentage",
+   "in_list_view": 1,
+   "read_only": 1
   },
   {
-   "fieldname": "approved_deduction",
-   "fieldtype": "Currency",
-   "label": "Approved Deduction",
-   "in_list_view": 1
+   "fieldname": "on_leave",
+   "fieldtype": "Check",
+   "label": "On Leave",
+   "in_list_view": 1,
+   "default": "0"
   },
   {
    "default": "1",
-   "fieldname": "approved",
+   "fieldname": "apply_deduction",
    "fieldtype": "Check",
-   "label": "Approved",
+   "label": "Apply Deduction",
    "in_list_view": 1
   }
  ],

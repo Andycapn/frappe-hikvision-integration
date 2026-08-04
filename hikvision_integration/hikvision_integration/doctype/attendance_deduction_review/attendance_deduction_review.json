@@ -8,7 +8,7 @@
   "company",
   "start_date",
   "end_date",
-  "deduction_percentage",
+  "rules",
   "status",
   "amended_from",
   "deductions"
@@ -37,11 +37,10 @@
    "reqd": 1
   },
   {
-   "fieldname": "deduction_percentage",
-   "fieldtype": "Percent",
-   "label": "Deduction Percentage",
-   "default": "100.0",
-   "reqd": 1
+   "fieldname": "rules",
+   "fieldtype": "Table",
+   "label": "Threshold Rules",
+   "options": "Attendance Deduction Rule"
   },
   {
    "fieldname": "status",

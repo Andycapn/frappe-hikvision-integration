@@ -1,36 +1,49 @@
 import frappe
 from frappe.model.document import Document
-from frappe.utils import flt
+from frappe.utils import flt, date_diff, getdate
 
 class AttendanceDeductionReview(Document):
 	@frappe.whitelist()
-	def fetch_draft_salary_slip_deductions(self):
+	def fetch_employees_for_review(self):
 		"""
-		Load all draft Salary Slips for the selected company and period,
-		compute their checkins/deductions, and populate the child table.
+		Load all active employees for the selected company,
+		compute their checkins based on Frappe's holiday list standard working days,
+		evaluate deduction rules, and populate the child table.
 		"""
-		# Clear existing deductions
 		self.set("deductions", [])
 
-		# Find all draft Salary Slips matching start_date, end_date and company
-		draft_slips = frappe.get_all(
-			"Salary Slip",
-			filters={
-				"docstatus": 0,
-				"company": self.company,
-				"start_date": self.start_date,
-				"end_date": self.end_date
-			},
-			fields=["name", "employee", "employee_name", "total_working_days"]
+		if not self.company or not self.start_date or not self.end_date:
+			frappe.throw("Please set Company, Start Date and End Date.")
+
+		# Get rules sorted descending by min_missed_days
+		rules = sorted(self.get("rules", []), key=lambda r: r.min_missed_days, reverse=True)
+
+		active_employees = frappe.get_all(
+			"Employee",
+			filters={"status": "Active", "company": self.company},
+			fields=["name", "employee_name", "holiday_list"]
 		)
+		
+		# Fallback to company holiday list
+		company_holiday_list = frappe.db.get_value("Company", self.company, "default_holiday_list")
 
-		if not draft_slips:
-			return []
-
-		for slip_data in draft_slips:
-			slip = frappe.get_doc("Salary Slip", slip_data.name)
+		for emp in active_employees:
+			holiday_list = emp.holiday_list or company_holiday_list
 			
-			# Count distinct checkin dates
+			total_days_in_period = date_diff(self.end_date, self.start_date) + 1
+			holiday_count = 0
+			
+			if holiday_list:
+				holiday_count = frappe.db.count("Holiday", filters={
+					"parent": holiday_list,
+					"holiday_date": ["between", [self.start_date, self.end_date]]
+				})
+			
+			total_working_days = total_days_in_period - holiday_count
+			if total_working_days <= 0:
+				continue
+				
+			# Check actual check-ins for period
 			checkin_days = frappe.db.sql_list(
 				"""
 				SELECT DISTINCT DATE(time)
@@ -38,38 +51,35 @@ class AttendanceDeductionReview(Document):
 				WHERE employee = %s
 				  AND DATE(time) BETWEEN %s AND %s
 				""",
-				(slip.employee, self.start_date, self.end_date)
+				(emp.name, self.start_date, self.end_date)
 			)
 			actual_days = len(checkin_days)
-			total_days = flt(slip.total_working_days)
-
-			if total_days <= 0:
-				continue
-
-			# Sum gross earnings
-			gross_earnings = sum(flt(d.amount) for d in slip.earnings)
+			missed_days = max(0.0, float(total_working_days) - actual_days)
 			
-			# Calculate deduction
-			percentage = flt(self.deduction_percentage) if self.deduction_percentage is not None else 100.0
-			if actual_days < total_days:
-				missed_days = total_days - actual_days
-				daily_rate = gross_earnings / total_days
-				calculated_deduction = daily_rate * missed_days * (percentage / 100.0)
-			else:
-				missed_days = 0
-				calculated_deduction = 0.0
-
-			# Append to child table
+			# Check if employee has ANY historical checkins
+			historical_checkins = frappe.db.count("Employee Checkin", filters={"employee": emp.name})
+			has_historical = 1 if historical_checkins > 0 else 0
+			
+			apply_deduction = 0
+			matched_percentage = 0.0
+			
+			if has_historical and missed_days > 0:
+				for rule in rules:
+					if missed_days >= rule.min_missed_days:
+						matched_percentage = rule.deduction_percentage
+						apply_deduction = 1
+						break
+			
 			self.append("deductions", {
-				"employee": slip.employee,
-				"employee_name": slip.employee_name,
-				"total_working_days": total_days,
+				"employee": emp.name,
+				"employee_name": emp.employee_name,
+				"total_working_days": total_working_days,
 				"actual_days_checked_in": actual_days,
 				"missed_days": missed_days,
-				"gross_pay": gross_earnings,
-				"calculated_deduction": flt(calculated_deduction, 2),
-				"approved_deduction": flt(calculated_deduction, 2),
-				"approved": 1 if calculated_deduction > 0 else 0
+				"has_historical_checkins": has_historical,
+				"matched_percentage": matched_percentage,
+				"apply_deduction": apply_deduction,
+				"on_leave": 0
 			})
 
 		return self.deductions

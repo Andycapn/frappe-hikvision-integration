@@ -19,7 +19,8 @@ def check_and_create_salary_component():
 def calculate_attendance_deduction(doc, method=None):
 	"""
 	Hook running on Salary Slip before_save.
-	Calculates or retrieves approved attendance deduction.
+	Retrieves the approved attendance deduction from an Attendance Deduction Review document.
+	Does NOT calculate deductions on the fly if a review document is missing.
 	"""
 	if not (doc.employee and doc.start_date and doc.end_date):
 		return
@@ -27,61 +28,40 @@ def calculate_attendance_deduction(doc, method=None):
 	# Ensure Salary Component exists
 	check_and_create_salary_component()
 
-	# Check if an Attendance Deduction Review exists for this company and period
-	# (Prefer Submitted over Draft if both exist)
+	# Check if a Submitted Attendance Deduction Review exists for this company and period
 	review_name = frappe.db.get_value(
 		"Attendance Deduction Review",
 		{
 			"company": doc.company,
 			"start_date": doc.start_date,
 			"end_date": doc.end_date,
-			"docstatus": ["in", [0, 1]]
+			"docstatus": 1
 		},
 		"name",
-		order_by="docstatus desc"
+		order_by="creation desc"
 	)
 
+	deduction_amount = 0.0
+
 	if review_name:
-		# Retrieve the approved deduction amount for the employee
+		# Retrieve the approved deduction details for the employee
 		detail = frappe.db.get_value(
 			"Attendance Deduction Review Detail",
 			{
 				"parent": review_name,
 				"employee": doc.employee
 			},
-			["approved", "approved_deduction"],
+			["apply_deduction", "on_leave", "matched_percentage", "missed_days"],
 			as_dict=True
 		)
-		if detail and detail.approved:
-			deduction_amount = flt(detail.approved_deduction)
-		else:
-			deduction_amount = 0.0
-	else:
-		# Fallback to on-the-fly calculation (initial proposal)
-		checkin_days = frappe.db.sql_list(
-			"""
-			SELECT DISTINCT DATE(time)
-			FROM `tabEmployee Checkin`
-			WHERE employee = %s
-			  AND DATE(time) BETWEEN %s AND %s
-			""",
-			(doc.employee, doc.start_date, doc.end_date),
-		)
-		actual_days = len(checkin_days)
-		total_days = flt(doc.total_working_days)
-
-		if total_days > 0:
-			deduction_percentage = flt(frappe.conf.get("hikvision_attendance_deduction_percentage"), 100.0)
-			gross_earnings = sum(flt(d.amount) for d in doc.earnings)
-
-			if actual_days < total_days:
-				missed_days = total_days - actual_days
-				daily_rate = gross_earnings / total_days
-				deduction_amount = daily_rate * missed_days * (deduction_percentage / 100.0)
-			else:
-				deduction_amount = 0.0
-		else:
-			deduction_amount = 0.0
+		
+		# Only apply if marked 'apply_deduction' and NOT 'on_leave'
+		if detail and detail.apply_deduction and not detail.on_leave:
+			matched_percentage = flt(detail.matched_percentage)
+			
+			if matched_percentage > 0:
+				gross_earnings = sum(flt(d.amount) for d in doc.earnings)
+				deduction_amount = gross_earnings * (matched_percentage / 100.0)
 
 	# Round the deduction amount
 	deduction_amount = flt(deduction_amount, 2)
