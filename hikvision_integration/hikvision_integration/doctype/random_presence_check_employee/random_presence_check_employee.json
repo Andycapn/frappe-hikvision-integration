@@ -1,0 +1,71 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2026-07-13 11:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "employee",
+  "employee_name",
+  "status",
+  "verification_event",
+  "verification_time",
+  "verification_method"
+ ],
+ "fields": [
+  {
+   "fieldname": "employee",
+   "fieldtype": "Link",
+   "label": "Employee",
+   "options": "Employee",
+   "in_list_view": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "employee_name",
+   "fieldtype": "Data",
+   "label": "Employee Name",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "options": "Pending\nVerified\nMissed",
+   "default": "Pending",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "verification_event",
+   "fieldtype": "Link",
+   "label": "Verification Event",
+   "options": "Hikvision Event",
+   "read_only": 1
+  },
+  {
+   "fieldname": "verification_time",
+   "fieldtype": "Datetime",
+   "label": "Verification Time",
+   "read_only": 1
+  },
+  {
+   "fieldname": "verification_method",
+   "fieldtype": "Select",
+   "label": "Verification Method",
+   "options": "Terminal Scan\nMobile Geofence",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2026-07-13 11:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Hikvision Integration",
+ "name": "Random Presence Check Employee",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

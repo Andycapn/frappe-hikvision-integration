@@ -138,20 +138,25 @@ app_license = "mit"
 # ---------------
 # Hook on document methods and events
 
-# doc_events = {
-# 	"*": {
-# 		"on_update": "method",
-# 		"on_cancel": "method",
-# 		"on_trash": "method"
-# 	}
-# }
+doc_events = {
+	"Employee": {
+		"before_insert": "hikvision_integration.api.auto_generate_attendance_id"
+	},
+	"Salary Slip": {
+		"before_save": "hikvision_integration.payroll.calculate_attendance_deduction"
+	}
+}
 
 # Scheduled Tasks
 # ---------------
 
 scheduler_events = {
+	"all": [
+		"hikvision_integration.api.check_expired_presence_checks"
+	],
 	"hourly": [
-		"hikvision_integration.api.process_unprocessed_events"
+		"hikvision_integration.api.process_unprocessed_events",
+		"hikvision_integration.api.fill_missing_attendance_ids"
 	]
 }
 

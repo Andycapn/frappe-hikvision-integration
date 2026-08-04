@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Mobile Geofenced Check-In</title>
+	<!-- Google Fonts -->
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+	
+	<style>
+		:root {
+			--bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+			--card-bg: rgba(30, 41, 59, 0.45);
+			--card-border: rgba(255, 255, 255, 0.08);
+			--text-primary: #f8fafc;
+			--text-secondary: #94a3b8;
+			--primary: #0ea5e9;
+			--primary-glow: rgba(14, 165, 233, 0.3);
+			--success: #10b981;
+			--success-glow: rgba(16, 185, 129, 0.25);
+			--danger: #f43f5e;
+			--danger-glow: rgba(244, 63, 94, 0.25);
+			--warning: #f59e0b;
+			--warning-glow: rgba(245, 158, 11, 0.25);
+		}
+
+		* {
+			box-sizing: border-box;
+			margin: 0;
+			padding: 0;
+			font-family: 'Outfit', sans-serif;
+			-webkit-tap-highlight-color: transparent;
+		}
+
+		body {
+			background: var(--bg-gradient);
+			color: var(--text-primary);
+			min-height: 100vh;
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			padding: 1.5rem;
+			overflow-x: hidden;
+		}
+
+		.app-container {
+			width: 100%;
+			max-width: 480px;
+			display: flex;
+			flex-direction: column;
+			gap: 1.5rem;
+			padding-bottom: 2rem;
+		}
+
+		/* Header Section */
+		.header {
+			text-align: center;
+			margin-top: 1rem;
+		}
+
+		.header h1 {
+			font-size: 1.8rem;
+			font-weight: 700;
+			letter-spacing: -0.5px;
+			background: linear-gradient(to right, #38bdf8, #818cf8);
+			-webkit-background-clip: text;
+			-webkit-text-fill-color: transparent;
+			margin-bottom: 0.25rem;
+		}
+
+		.header p {
+			font-size: 0.9rem;
+			color: var(--text-secondary);
+		}
+
+		/* Card Styles */
+		.card {
+			background: var(--card-bg);
+			border: 1px solid var(--card-border);
+			backdrop-filter: blur(16px);
+			-webkit-backdrop-filter: blur(16px);
+			border-radius: 20px;
+			padding: 1.5rem;
+			box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.3);
+			position: relative;
+			overflow: hidden;
+		}
+
+		/* User Info Card */
+		.user-card {
+			display: flex;
+			align-items: center;
+			gap: 1rem;
+		}
+
+		.user-avatar {
+			width: 48px;
+			height: 48px;
+			border-radius: 50%;
+			background: linear-gradient(135deg, #0284c7 0%, #4f46e5 100%);
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			font-weight: 700;
+			font-size: 1.2rem;
+			color: white;
+			box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+		}
+
+		.user-info {
+			display: flex;
+			flex-direction: column;
+		}
+
+		.user-name {
+			font-weight: 600;
+			font-size: 1.1rem;
+		}
+
+		.user-id {
+			font-size: 0.8rem;
+			color: var(--text-secondary);
+		}
+
+		/* Alert Card - Active Random Check */
+		.alert-card {
+			background: rgba(245, 158, 11, 0.1);
+			border: 1px solid rgba(245, 158, 11, 0.3);
+			border-radius: 16px;
+			padding: 1rem;
+			display: flex;
+			gap: 0.75rem;
+			align-items: flex-start;
+			animation: pulse-glow 2s infinite alternate;
+		}
+
+		.alert-icon {
+			font-size: 1.4rem;
+			animation: shake 1.5s infinite;
+		}
+
+		.alert-content h4 {
+			color: var(--warning);
+			font-weight: 600;
+			font-size: 0.95rem;
+			margin-bottom: 0.2rem;
+		}
+
+		.alert-content p {
+			font-size: 0.85rem;
+			color: #fcd34d;
+			line-height: 1.3;
+		}
+
+		/* Radar & Location Panel */
+		.radar-panel {
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			gap: 1.25rem;
+			text-align: center;
+		}
+
+		.radar-outer {
+			width: 110px;
+			height: 110px;
+			border-radius: 50%;
+			border: 2px dashed rgba(255, 255, 255, 0.15);
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			position: relative;
+		}
+
+		.radar-inner {
+			width: 80px;
+			height: 80px;
+			border-radius: 50%;
+			background: rgba(255, 255, 255, 0.03);
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			transition: all 0.5s ease;
+		}
+
+		.radar-inner.success {
+			background: var(--success-glow);
+			box-shadow: 0 0 20px var(--success-glow);
+		}
+
+		.radar-inner.danger {
+			background: var(--danger-glow);
+			box-shadow: 0 0 20px var(--danger-glow);
+		}
+
+		.radar-inner.warning {
+			background: var(--warning-glow);
+			box-shadow: 0 0 20px var(--warning-glow);
+		}
+
+		.radar-icon {
+			width: 44px;
+			height: 44px;
+			fill: var(--text-secondary);
+			transition: all 0.5s ease;
+		}
+
+		.radar-inner.success .radar-icon {
+			fill: var(--success);
+		}
+
+		.radar-inner.danger .radar-icon {
+			fill: var(--danger);
+		}
+
+		.radar-inner.warning .radar-icon {
+			fill: var(--warning);
+		}
+
+		.radar-ring {
+			position: absolute;
+			width: 100%;
+			height: 100%;
+			border-radius: 50%;
+			border: 2px solid var(--primary);
+			opacity: 0;
+			animation: ripple 2s infinite ease-out;
+		}
+
+		.radar-ring.success { border-color: var(--success); }
+		.radar-ring.danger { border-color: var(--danger); }
+		.radar-ring.warning { border-color: var(--warning); }
+
+		.location-status-badge {
+			padding: 0.4rem 1rem;
+			border-radius: 30px;
+			font-size: 0.85rem;
+			font-weight: 600;
+			background: rgba(255, 255, 255, 0.05);
+			border: 1px solid rgba(255, 255, 255, 0.08);
+			display: flex;
+			align-items: center;
+			gap: 0.5rem;
+			transition: all 0.3s ease;
+		}
+
+		.location-status-badge.success {
+			color: #34d399;
+			background: rgba(16, 185, 129, 0.1);
+			border-color: rgba(16, 185, 129, 0.2);
+		}
+
+		.location-status-badge.danger {
+			color: #fb7185;
+			background: rgba(244, 63, 94, 0.1);
+			border-color: rgba(244, 63, 94, 0.2);
+		}
+
+		.location-status-badge.warning {
+			color: #fbbf24;
+			background: rgba(245, 158, 11, 0.1);
+			border-color: rgba(245, 158, 11, 0.2);
+		}
+
+		.pulse-dot {
+			width: 8px;
+			height: 8px;
+			border-radius: 50%;
+			background-color: currentColor;
+			box-shadow: 0 0 8px currentColor;
+		}
+
+		.pulse-dot.active {
+			animation: pulse-dot 1.5s infinite;
+		}
+
+		.coordinate-text {
+			font-size: 0.8rem;
+			color: var(--text-secondary);
+			font-family: monospace;
+			margin-top: -0.25rem;
+		}
+
+		/* Action Buttons */
+		.action-row {
+			display: grid;
+			grid-template-columns: 1fr 1fr;
+			gap: 1rem;
+		}
+
+		.btn {
+			border: none;
+			border-radius: 16px;
+			padding: 1.1rem;
+			font-weight: 600;
+			font-size: 1rem;
+			color: white;
+			cursor: pointer;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			gap: 0.5rem;
+			box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+			transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+			position: relative;
+			overflow: hidden;
+		}
+
+		.btn:hover {
+			transform: translateY(-2px);
+			box-shadow: 0 8px 25px rgba(0, 0, 0, 0.35);
+		}
+
+		.btn:active {
+			transform: translateY(1px);
+		}
+
+		.btn:disabled {
+			opacity: 0.4;
+			cursor: not-allowed;
+			transform: none !important;
+			box-shadow: none !important;
+		}
+
+		.btn-in {
+			background: linear-gradient(135deg, #0ea5e9 0%, #10b981 100%);
+		}
+		.btn-in:hover {
+			box-shadow: 0 8px 25px rgba(16, 185, 129, 0.4);
+		}
+
+		.btn-out {
+			background: linear-gradient(135deg, #ec4899 0%, #f43f5e 100%);
+		}
+		.btn-out:hover {
+			box-shadow: 0 8px 25px rgba(244, 63, 94, 0.4);
+		}
+
+		/* Spinner */
+		.spinner {
+			width: 20px;
+			height: 20px;
+			border: 2.5px solid rgba(255, 255, 255, 0.3);
+			border-radius: 50%;
+			border-top-color: white;
+			animation: spin 0.8s infinite linear;
+			display: none;
+		}
+
+		/* Logs Section */
+		.logs-section {
+			display: flex;
+			flex-direction: column;
+			gap: 0.75rem;
+		}
+
+		.section-title {
+			font-size: 0.95rem;
+			font-weight: 600;
+			text-transform: uppercase;
+			letter-spacing: 1px;
+			color: var(--text-secondary);
+			margin-left: 0.5rem;
+		}
+
+		.logs-list {
+			display: flex;
+			flex-direction: column;
+			gap: 0.75rem;
+		}
+
+		.log-item {
+			background: rgba(30, 41, 59, 0.25);
+			border: 1px solid rgba(255, 255, 255, 0.05);
+			border-radius: 14px;
+			padding: 0.9rem 1.2rem;
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			transition: background 0.3s;
+		}
+
+		.log-item:hover {
+			background: rgba(30, 41, 59, 0.35);
+		}
+
+		.log-left {
+			display: flex;
+			flex-direction: column;
+			gap: 0.15rem;
+		}
+
+		.log-device {
+			font-size: 0.8rem;
+			color: var(--text-secondary);
+		}
+
+		.log-time {
+			font-weight: 500;
+			font-size: 0.95rem;
+		}
+
+		.log-badge {
+			padding: 0.25rem 0.6rem;
+			border-radius: 30px;
+			font-size: 0.75rem;
+			font-weight: 700;
+		}
+
+		.log-badge.in {
+			color: #34d399;
+			background: rgba(16, 185, 129, 0.15);
+			border: 1px solid rgba(16, 185, 129, 0.2);
+		}
+
+		.log-badge.out {
+			color: #fb7185;
+			background: rgba(244, 63, 94, 0.15);
+			border: 1px solid rgba(244, 63, 94, 0.2);
+		}
+
+		.empty-logs {
+			text-align: center;
+			padding: 2rem;
+			color: var(--text-secondary);
+			font-size: 0.9rem;
+			border: 1px dashed rgba(255, 255, 255, 0.05);
+			border-radius: 14px;
+		}
+
+		/* Errors Page */
+		.no-employee-card {
+			text-align: center;
+			padding: 3rem 1.5rem;
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			gap: 1.5rem;
+		}
+
+		.no-employee-icon {
+			font-size: 3rem;
+		}
+
+		.no-employee-card h3 {
+			font-size: 1.3rem;
+			font-weight: 600;
+		}
+
+		.no-employee-card p {
+			color: var(--text-secondary);
+			font-size: 0.9rem;
+			line-height: 1.5;
+		}
+
+		/* Toast notifications */
+		.toast-container {
+			position: fixed;
+			bottom: 2rem;
+			left: 50%;
+			transform: translateX(-50%);
+			z-index: 1000;
+			width: calc(100% - 3rem);
+			max-width: 400px;
+			display: flex;
+			flex-direction: column;
+			gap: 0.5rem;
+			pointer-events: none;
+		}
+
+		.toast {
+			padding: 1rem;
+			border-radius: 12px;
+			background: rgba(15, 23, 42, 0.9);
+			border: 1px solid var(--card-border);
+			box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+			backdrop-filter: blur(8px);
+			-webkit-backdrop-filter: blur(8px);
+			color: white;
+			font-size: 0.9rem;
+			font-weight: 500;
+			display: flex;
+			align-items: center;
+			gap: 0.5rem;
+			animation: slide-up 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+		}
+
+		.toast.success {
+			border-color: rgba(16, 185, 129, 0.4);
+			background: rgba(6, 78, 59, 0.9);
+		}
+
+		.toast.error {
+			border-color: rgba(244, 63, 94, 0.4);
+			background: rgba(136, 19, 55, 0.9);
+		}
+
+		/* Animations */
+		@keyframes spin {
+			to { transform: rotate(360deg); }
+		}
+
+		@keyframes pulse-glow {
+			0% { box-shadow: 0 0 5px rgba(245, 158, 11, 0.1); }
+			100% { box-shadow: 0 0 15px rgba(245, 158, 11, 0.3); }
+		}
+
+		@keyframes ripple {
+			0% {
+				transform: scale(0.8);
+				opacity: 0.6;
+			}
+			100% {
+				transform: scale(1.3);
+				opacity: 0;
+			}
+		}
+
+		@keyframes pulse-dot {
+			0% { transform: scale(1); opacity: 1; }
+			50% { transform: scale(1.3); opacity: 0.6; }
+			100% { transform: scale(1); opacity: 1; }
+		}
+
+		@keyframes shake {
+			0%, 100% { transform: rotate(0deg); }
+			25% { transform: rotate(-8deg); }
+			75% { transform: rotate(8deg); }
+		}
+
+		@keyframes slide-up {
+			from { transform: translateY(20px); opacity: 0; }
+			to { transform: translateY(0); opacity: 1; }
+		}
+	</style>
+</head>
+<body>
+
+	<div class="app-container">
+		
+		<!-- Header -->
+		<div class="header">
+			<h1>GateWay</h1>
+			<p>Secure Mobile Check-In Portal</p>
+		</div>
+
+		{% if no_employee %}
+		<!-- Error State: User not linked to employee -->
+		<div class="card no-employee-card">
+			<div class="no-employee-icon">👤🚫</div>
+			<h3>User Link Required</h3>
+			<p>Your user profile (<strong>{{ frappe.session.user }}</strong>) is not linked to any Employee record in the system. Please request HR to configure your account.</p>
+		</div>
+		{% else %}
+
+		<!-- User Identity Card -->
+		<div class="card user-card">
+			<div class="user-avatar">
+				{{ employee_name[0] | upper }}
+			</div>
+			<div class="user-info">
+				<span class="user-name">{{ employee_name }}</span>
+				<span class="user-id">Employee ID: {{ employee }}</span>
+			</div>
+		</div>
+
+		<!-- Random Presence Check Alert Banner -->
+		{% if pending_random_checks %}
+			{% for check in pending_random_checks %}
+			<div class="alert-card">
+				<div class="alert-icon">⚠️</div>
+				<div class="alert-content">
+					<h4>Urgent: Random Presence Check</h4>
+					<p>You have been flagged for a random check. Scan at any physical terminal before <strong>{{ check.limit_time }}</strong> ({{ check.remaining_minutes }} min remaining) to verify your presence.</p>
+				</div>
+			</div>
+			{% endfor %}
+		{% endif %}
+
+		<!-- GPS Status & Geofence Verification Panel -->
+		<div class="card radar-panel">
+			<div class="radar-outer">
+				<div id="radar-ripple" class="radar-ring"></div>
+				<div id="radar-circle" class="radar-inner">
+					<!-- Standard Map Pin Icon SVG -->
+					<svg id="gps-icon" class="radar-icon" viewBox="0 0 24 24">
+						<path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+					</svg>
+				</div>
+			</div>
+
+			<div id="geofence-badge" class="location-status-badge">
+				<div class="pulse-dot active"></div>
+				<span id="badge-text">Acquiring Location...</span>
+			</div>
+
+			<div id="coordinates" class="coordinate-text">
+				Waiting for GPS coordinates...
+			</div>
+		</div>
+
+		<!-- Actions -->
+		<div class="action-row">
+			<button id="btn-checkin" class="btn btn-in" onclick="performCheckin('IN')" disabled>
+				<span id="spinner-in" class="spinner"></span>
+				<span id="btn-text-in">Check In</span>
+			</button>
+			<button id="btn-checkout" class="btn btn-out" onclick="performCheckin('OUT')" disabled>
+				<span id="spinner-out" class="spinner"></span>
+				<span id="btn-text-out">Check Out</span>
+			</button>
+		</div>
+
+		<!-- History Logs -->
+		<div class="logs-section">
+			<span class="section-title">Today's Check-ins</span>
+			<div class="logs-list">
+				{% if today_checkins %}
+					{% for log in today_checkins %}
+					<div class="log-item">
+						<div class="log-left">
+							<span class="log-time">{{ frappe.utils.format_datetime(log.time, "hh:mm a") }}</span>
+							<span class="log-device">{{ log.device_id }}</span>
+						</div>
+						<span class="log-badge {{ log.log_type | lower }}">{{ log.log_type }}</span>
+					</div>
+					{% endfor %}
+				{% else %}
+					<div class="empty-logs">
+						No check-ins recorded today.
+					</div>
+				{% endif %}
+			</div>
+		</div>
+
+		{% endif %}
+
+	</div>
+
+	<!-- Toasts -->
+	<div id="toast-container" class="toast-container"></div>
+
+	<script>
+		// Setup CSRF token from Jinja injection
+		const csrfToken = "{{ csrf_token }}" || "";
+
+		let currentLatitude = null;
+		let currentLongitude = null;
+		let geofenceVerificationInProgress = false;
+		let watchId = null;
+
+		// UI elements
+		const radarCircle = document.getElementById('radar-circle');
+		const radarRipple = document.getElementById('radar-ripple');
+		const geofenceBadge = document.getElementById('geofence-badge');
+		const badgeText = document.getElementById('badge-text');
+		const coordsDiv = document.getElementById('coordinates');
+		const btnCheckin = document.getElementById('btn-checkin');
+		const btnCheckout = document.getElementById('btn-checkout');
+
+		// Toast notification helper
+		function showToast(message, type = 'success') {
+			const container = document.getElementById('toast-container');
+			const toast = document.createElement('div');
+			toast.className = `toast ${type}`;
+			
+			let icon = 'ℹ️';
+			if (type === 'success') icon = '✅';
+			if (type === 'error') icon = '❌';
+
+			toast.innerHTML = `<span>${icon}</span><span>${message}</span>`;
+			container.appendChild(toast);
+
+			setTimeout(() => {
+				toast.style.animation = 'slide-up 0.3s reverse forwards';
+				setTimeout(() => toast.remove(), 300);
+			}, 3500);
+		}
+
+		// Initialize location tracking
+		function initLocation() {
+			if (!navigator.geolocation) {
+				updateRadarState('danger', 'GPS Not Supported');
+				coordsDiv.textContent = 'Geolocation is not supported by your browser.';
+				showToast('Geolocation is not supported by this browser.', 'error');
+				return;
+			}
+
+			const options = {
+				enableHighAccuracy: true,
+				timeout: 10000,
+				maximumAge: 0
+			};
+
+			// Start watching user location
+			watchId = navigator.geolocation.watchPosition(
+				onLocationSuccess,
+				onLocationError,
+				options
+			);
+		}
+
+		// GPS success callback
+		function onLocationSuccess(position) {
+			const lat = position.coords.latitude;
+			const lon = position.coords.longitude;
+			
+			// Prevent redundant requests if coords haven't changed much
+			if (currentLatitude === lat && currentLongitude === lon) {
+				return;
+			}
+
+			currentLatitude = lat;
+			currentLongitude = lon;
+			coordsDiv.textContent = `Lat: ${lat.toFixed(6)}, Lon: ${lon.toFixed(6)}`;
+
+			verifyGeofence(lat, lon);
+		}
+
+		// GPS error callback
+		function onLocationError(error) {
+			console.error("GPS Error: ", error);
+			let msg = 'Failed to retrieve GPS location.';
+			if (error.code === error.PERMISSION_DENIED) {
+				msg = 'GPS Permission Denied. Please enable location.';
+			} else if (error.code === error.POSITION_UNAVAILABLE) {
+				msg = 'GPS Position Unavailable.';
+			} else if (error.code === error.TIMEOUT) {
+				msg = 'GPS Timeout.';
+			}
+
+			updateRadarState('danger', msg);
+			coordsDiv.textContent = 'Error: ' + msg;
+			btnCheckin.disabled = true;
+			btnCheckout.disabled = true;
+		}
+
+		// Call backend to verify if employee is inside geofence
+		async function verifyGeofence(lat, lon) {
+			if (geofenceVerificationInProgress) return;
+			geofenceVerificationInProgress = true;
+
+			updateRadarState('warning', 'Verifying Geofence...');
+
+			try {
+				const response = await fetch('/api/method/hikvision_integration.api.check_geofence_status', {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+						'X-Frappe-CSRF-Token': csrfToken
+					},
+					body: JSON.stringify({ latitude: lat, longitude: lon })
+				});
+
+				const data = await response.json();
+
+				if (data.message && data.message.in_zone) {
+					updateRadarState('success', `Inside ${data.message.zone_name}`);
+					btnCheckin.disabled = false;
+					btnCheckout.disabled = false;
+				} else if (data.message && data.message.closest_zone) {
+					const dist = data.message.distance;
+					const zone = data.message.closest_zone;
+					updateRadarState('danger', `${zone} (${dist.toFixed(0)}m away)`);
+					btnCheckin.disabled = true;
+					btnCheckout.disabled = true;
+				} else {
+					updateRadarState('danger', 'Outside Allowed Zones');
+					btnCheckin.disabled = true;
+					btnCheckout.disabled = true;
+				}
+			} catch (err) {
+				console.error("Geofence API Error:", err);
+				updateRadarState('warning', 'Connection Issue');
+			} finally {
+				geofenceVerificationInProgress = false;
+			}
+		}
+
+		// Update radar UI styling according to state
+		function updateRadarState(state, text) {
+			// Clear all classes
+			radarCircle.className = 'radar-inner';
+			radarRipple.className = 'radar-ring';
+			geofenceBadge.className = 'location-status-badge';
+
+			if (state === 'success') {
+				radarCircle.classList.add('success');
+				radarRipple.classList.add('success');
+				geofenceBadge.classList.add('success');
+			} else if (state === 'danger') {
+				radarCircle.classList.add('danger');
+				radarRipple.classList.add('danger');
+				geofenceBadge.classList.add('danger');
+			} else if (state === 'warning') {
+				radarCircle.classList.add('warning');
+				radarRipple.classList.add('warning');
+				geofenceBadge.classList.add('warning');
+			}
+
+			badgeText.textContent = text;
+		}
+
+		// Submit checkin payload to backend
+		async function performCheckin(type) {
+			if (currentLatitude === null || currentLongitude === null) {
+				showToast('GPS coordinates not ready.', 'error');
+				return;
+			}
+
+			// Show loading spinner
+			const spinner = document.getElementById(`spinner-${type.toLowerCase()}`);
+			const btnText = document.getElementById(`btn-text-${type.toLowerCase()}`);
+			const targetBtn = document.getElementById(`btn-${type.toLowerCase()}`);
+			const otherBtn = document.getElementById(`btn-${type === 'IN' ? 'out' : 'in'}`);
+
+			spinner.style.display = 'block';
+			btnText.style.display = 'none';
+			targetBtn.disabled = true;
+			otherBtn.disabled = true;
+
+			try {
+				const response = await fetch('/api/method/hikvision_integration.api.mobile_check_in', {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+						'X-Frappe-CSRF-Token': csrfToken
+					},
+					body: JSON.stringify({
+						latitude: currentLatitude,
+						longitude: currentLongitude,
+						log_type: type
+					})
+				});
+
+				const resData = await response.json();
+
+				if (response.ok && resData.message && resData.message.status === 'success') {
+					showToast(resData.message.message, 'success');
+					// Reload page after a short delay to refresh history log list
+					setTimeout(() => window.location.reload(), 1500);
+				} else {
+					const errorMsg = resData.exc ? JSON.parse(resData.exc)[0] : (resData.message || 'Check-in failed.');
+					showToast(errorMsg, 'error');
+					spinner.style.display = 'none';
+					btnText.style.display = 'block';
+					targetBtn.disabled = false;
+					otherBtn.disabled = false;
+				}
+			} catch (err) {
+				console.error("Check-in Error:", err);
+				showToast('Network error occurred.', 'error');
+				spinner.style.display = 'none';
+				btnText.style.display = 'block';
+				targetBtn.disabled = false;
+				otherBtn.disabled = false;
+			}
+		}
+
+		// Start tracking on page load
+		window.onload = () => {
+			if (document.getElementById('badge-text')) {
+				initLocation();
+			}
+		};
+	</script>
+</body>
+</html>

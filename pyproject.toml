@@ -23,6 +23,9 @@ build-backend = "flit_core.buildapi"
 [deploy.dependencies.apt]
 packages = []
 
+[tool.bench.frappe-dependencies]
+frappe = ">=16.0.0"
+
 [tool.ruff]
 line-length = 110
 target-version = "py314"

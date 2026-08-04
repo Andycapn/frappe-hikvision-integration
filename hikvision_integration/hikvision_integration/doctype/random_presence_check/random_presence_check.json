@@ -1,0 +1,96 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2026-07-13 11:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "check_date",
+  "time_initiated",
+  "time_limit_minutes",
+  "selection_type",
+  "sample_size",
+  "status",
+  "employees"
+ ],
+ "fields": [
+  {
+   "fieldname": "check_date",
+   "fieldtype": "Date",
+   "label": "Check Date",
+   "in_list_view": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "time_initiated",
+   "fieldtype": "Datetime",
+   "label": "Time Initiated",
+   "in_list_view": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "time_limit_minutes",
+   "fieldtype": "Int",
+   "label": "Time Limit (minutes)",
+   "default": "30",
+   "in_list_view": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "selection_type",
+   "fieldtype": "Select",
+   "label": "Selection Type",
+   "options": "All Clocked In\nRandom Sample",
+   "default": "All Clocked In",
+   "reqd": 1
+  },
+  {
+   "fieldname": "sample_size",
+   "fieldtype": "Int",
+   "label": "Sample Size",
+   "default": "5",
+   "depends_on": "eval:doc.selection_type == 'Random Sample'"
+  },
+  {
+   "default": "Pending",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "options": "Pending\nCompleted\nExpired",
+   "in_list_view": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "employees",
+   "fieldtype": "Table",
+   "label": "Selected Employees",
+   "options": "Random Presence Check Employee"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-07-13 11:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Hikvision Integration",
+ "name": "Random Presence Check",
+ "naming_rule": "Expression",
+ "autoname": "format:HIK-RPC-{YYYY}-{MM}-{DD}-{###}",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

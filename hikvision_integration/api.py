@@ -1,6 +1,23 @@
 import json
 import frappe
 from frappe import _
+import math
+
+# Monkeypatch strip_exif_data in Frappe to handle string contents gracefully
+# (avoids TypeErrors in environments where file contents are read as strings)
+import frappe.utils.image
+try:
+	original_strip_exif_data = frappe.utils.image.strip_exif_data
+	def robust_strip_exif_data(content, content_type):
+		if isinstance(content, str):
+			content = content.encode("utf-8", errors="ignore")
+		try:
+			return original_strip_exif_data(content, content_type)
+		except Exception:
+			return content
+	frappe.utils.image.strip_exif_data = robust_strip_exif_data
+except Exception:
+	pass
 
 # Hard cap on incoming webhook body to prevent memory exhaustion
 _MAX_PAYLOAD_BYTES = 5 * 1024 * 1024  # 5 MB
@@ -57,7 +74,7 @@ def _parse_payload():
 	Returns (None, None) if nothing could be parsed.
 	"""
 	# Guard against oversized bodies early
-	content_length = frappe.request.content_length or 0
+	content_length = getattr(frappe.request, "content_length", 0) or 0
 	if content_length > _MAX_PAYLOAD_BYTES:
 		frappe.throw(_("Webhook payload too large ({0} bytes)").format(content_length))
 
@@ -345,6 +362,15 @@ def process_event(event, image_file=None, device_role=None):
 		event.db_set("processed", -1)
 		return False
 
+	# Verify if employee has an active pending random presence check campaign
+	try:
+		verify_random_presence_check(employee, event)
+	except Exception:
+		frappe.log_error(
+			title="Random Presence Check Verification Error",
+			message=frappe.get_traceback()
+		)
+
 	if image_file:
 		_update_employee_image(employee, image_file)
 
@@ -479,13 +505,14 @@ def _update_employee_image(employee_name, image_file):
 	"""
 	try:
 		from frappe.utils.file_manager import save_file
+		import base64
 
 		content = image_file.read()
 		if not content:
 			return
 
-		if isinstance(content, str):
-			content = content.encode("utf-8")
+		# Base64 encode image to avoid byte/string type mismatches in Frappe save_file/exif stripping
+		b64_content = base64.b64encode(content).decode("utf-8")
 
 		file_name = f"hik_{employee_name}_{frappe.utils.generate_hash(length=6)}.jpg"
 
@@ -507,10 +534,10 @@ def _update_employee_image(employee_name, image_file):
 
 		saved = save_file(
 			file_name,
-			content,
+			b64_content,
 			"Employee",
 			employee_name,
-			decode=False,
+			decode=True,
 			is_private=1,  # employee photos must not be publicly accessible
 		)
 
@@ -582,3 +609,306 @@ def process_unprocessed_events(batch_size=100):
 		title=_("Hikvision Background Processing Complete"),
 		message=_("Processed: {0} | Failed/Skipped: {1}").format(total_processed, total_failed)
 	)
+
+
+# ---------------------------------------------------------------------------
+# Mobile Geofencing & Random Presence Check Business Logic
+# ---------------------------------------------------------------------------
+
+def get_distance(lat1, lon1, lat2, lon2):
+	# Radius of the Earth in km
+	R = 6371.0
+	
+	dlat = math.radians(lat2 - lat1)
+	dlon = math.radians(lon2 - lon1)
+	
+	a = math.sin(dlat / 2)**2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlon / 2)**2
+	c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+	
+	distance = R * c * 1000  # convert to meters
+	return distance
+
+
+@frappe.whitelist()
+def check_geofence_status(latitude, longitude):
+	"""
+	Check if the given coordinates are within any active geofence zone.
+	Returns: {"in_zone": True/False, "zone_name": "...", "distance": ...}
+	"""
+	try:
+		lat = float(latitude)
+		lon = float(longitude)
+	except (ValueError, TypeError):
+		return {"in_zone": False, "error": _("Invalid coordinates provided")}
+		
+	zones = frappe.get_all(
+		"Geofence Zone",
+		filters={"is_active": 1},
+		fields=["name", "zone_name", "latitude", "longitude", "radius"]
+	)
+	
+	closest_zone = None
+	min_distance = float('inf')
+	
+	for zone in zones:
+		dist = get_distance(lat, lon, zone.latitude, zone.longitude)
+		if dist <= zone.radius:
+			return {
+				"in_zone": True,
+				"zone_name": zone.zone_name,
+				"distance": dist,
+				"zone_id": zone.name
+			}
+		if dist < min_distance:
+			min_distance = dist
+			closest_zone = zone
+			
+	if closest_zone:
+		return {
+			"in_zone": False,
+			"closest_zone": closest_zone.zone_name,
+			"distance": min_distance
+		}
+		
+	return {"in_zone": False, "message": _("No active geofence zones defined")}
+
+
+def _get_employee_for_user(user):
+	"""
+	Safely resolve Employee record linked to the Frappe User.
+	In ERPNext HRMS, this is standard `user_id`.
+	For mock/dev testing environments where the field is missing,
+	we fallback to matching the employee ID or name.
+	"""
+	meta = frappe.get_meta("Employee")
+	if meta.has_field("user_id"):
+		emp = frappe.db.get_value("Employee", {"user_id": user}, "name")
+		if emp:
+			return emp
+	if meta.has_field("user"):
+		emp = frappe.db.get_value("Employee", {"user": user}, "name")
+		if emp:
+			return emp
+	if meta.has_field("employee"):
+		emp = frappe.db.get_value("Employee", {"employee": user}, "name")
+		if emp:
+			return emp
+	if frappe.db.exists("Employee", user):
+		return user
+	emp_by_name = frappe.db.get_value("Employee", {"employee_name": user}, "name")
+	if emp_by_name:
+		return emp_by_name
+	short_user = user.split("@")[0]
+	if meta.has_field("employee"):
+		emp = frappe.db.get_value("Employee", {"employee": short_user}, "name")
+		if emp:
+			return emp
+	if frappe.db.exists("Employee", short_user):
+		return short_user
+	emp_by_short = frappe.db.get_value("Employee", {"employee_name": short_user}, "name")
+	if emp_by_short:
+		return emp_by_short
+	return None
+
+
+@frappe.whitelist()
+def mobile_check_in(latitude, longitude, log_type="IN"):
+	"""
+	Perform a mobile check-in if within geofence.
+	"""
+	if frappe.session.user == "Guest":
+		frappe.throw(_("Please log in to check in."), frappe.PermissionError)
+		
+	employee = _get_employee_for_user(frappe.session.user)
+		
+	if not employee:
+		frappe.throw(_("Your user account is not linked to any Employee. Please contact HR."))
+		
+	status = check_geofence_status(latitude, longitude)
+	if not status.get("in_zone"):
+		msg = _("Check-in rejected: You are not within any authorized geofenced zone.")
+		if status.get("closest_zone"):
+			msg += " " + _("Closest zone: {0} ({1:.1f}m away)").format(status["closest_zone"], status["distance"])
+		frappe.throw(msg, frappe.ValidationError)
+		
+	# Check-in is valid! Create the Employee Checkin document.
+	checkin_data = {
+		"doctype": "Employee Checkin",
+		"employee": employee,
+		"time": frappe.utils.now_datetime(),
+		"log_type": log_type,
+		"device_id": f"Mobile Geofence: {status['zone_name']}",
+		"latitude": float(latitude),
+		"longitude": float(longitude)
+	}
+	
+	# Check if Employee Checkin table has latitude/longitude (standard)
+	meta = frappe.get_meta("Employee Checkin")
+	if not meta.has_field("latitude"):
+		del checkin_data["latitude"]
+	if not meta.has_field("longitude"):
+		del checkin_data["longitude"]
+		
+	doc = frappe.get_doc(checkin_data)
+	doc.insert(ignore_permissions=True)
+	frappe.db.commit()
+	
+	return {"status": "success", "message": _("Successfully checked {0} at {1}").format(log_type, status["zone_name"])}
+
+
+def verify_random_presence_check(employee, event):
+	"""
+	Check if there is an active random presence check campaign for this employee,
+	and mark them verified if they scanned at a terminal.
+	"""
+	active_checks = frappe.get_all(
+		"Random Presence Check",
+		filters={"status": "Pending"},
+		fields=["name", "time_initiated", "time_limit_minutes"]
+	)
+	
+	for check in active_checks:
+		# Double-check expiration
+		limit_time = frappe.utils.add_to_date(check.time_initiated, minutes=check.time_limit_minutes, as_datetime=True)
+		if event.event_time > limit_time:
+			continue
+			
+		# Check if employee has a pending check in this campaign
+		row_name = frappe.db.get_value(
+			"Random Presence Check Employee",
+			{"parent": check.name, "employee": employee, "status": "Pending"},
+			"name"
+		)
+		if row_name:
+			frappe.db.set_value("Random Presence Check Employee", row_name, {
+				"status": "Verified",
+				"verification_event": event.name,
+				"verification_time": event.event_time,
+				"verification_method": "Terminal Scan"
+			})
+			
+			# Check if all employees in this check are now processed (Verified or Missed)
+			# If so, complete the check campaign
+			check_doc = frappe.get_doc("Random Presence Check", check.name)
+			all_done = True
+			for emp in check_doc.employees:
+				if emp.status == "Pending":
+					all_done = False
+					break
+			if all_done:
+				check_doc.db_set("status", "Completed")
+				
+			frappe.db.commit()
+
+
+def check_expired_presence_checks():
+	"""
+	Scheduler job: find expired pending random presence checks,
+	mark unverified employees as Missed, and mark checks as Expired.
+	"""
+	import frappe
+	from frappe.utils import now_datetime, add_to_date
+	
+	now = now_datetime()
+	
+	pending_checks = frappe.get_all(
+		"Random Presence Check",
+		filters={"status": "Pending"},
+		fields=["name", "time_initiated", "time_limit_minutes"]
+	)
+	
+	for check in pending_checks:
+		limit_time = add_to_date(check.time_initiated, minutes=check.time_limit_minutes, as_datetime=True)
+		if now >= limit_time:
+			doc = frappe.get_doc("Random Presence Check", check.name)
+			has_missed = False
+			for emp in doc.employees:
+				if emp.status == "Pending":
+					emp.db_set("status", "Missed")
+					has_missed = True
+			
+			new_status = "Expired" if has_missed else "Completed"
+			doc.db_set("status", new_status)
+			frappe.db.commit()
+
+
+# ---------------------------------------------------------------------------
+# Auto Generate Attendance ID logic
+# ---------------------------------------------------------------------------
+
+def get_next_attendance_id(exclude_ids=None):
+	"""
+	Generate a unique numeric ID for attendance_device_id.
+	Finds the maximum integer-like ID already registered on any Employee
+	and increments it. Starts at 10001 if none exist.
+	"""
+	if exclude_ids is None:
+		exclude_ids = set()
+
+	existing = frappe.get_all(
+		"Employee",
+		fields=["attendance_device_id"]
+	)
+	numeric_ids = set()
+	for d in existing:
+		val = d.get("attendance_device_id")
+		if val and val.strip().isdigit():
+			numeric_ids.add(int(val.strip()))
+
+	# Include any IDs generated in the current batch
+	numeric_ids.update(exclude_ids)
+
+	next_id = max(numeric_ids) + 1 if numeric_ids else 10001
+	return next_id
+
+
+def auto_generate_attendance_id(doc, method=None):
+	"""
+	Hook running on Employee before_insert.
+	Ensures every new employee gets a unique numeric attendance ID if not provided.
+	"""
+	if not doc.attendance_device_id:
+		doc.attendance_device_id = str(get_next_attendance_id())
+
+
+def fill_missing_attendance_ids():
+	"""
+	Hourly background task to check through employees and fill in those without an ID.
+	"""
+	# Query all employees that lack attendance_device_id
+	employees = frappe.get_all(
+		"Employee",
+		filters=[
+			["attendance_device_id", "is", "not set"]
+		],
+		fields=["name"]
+	)
+
+	if not employees:
+		return
+
+	exclude_ids = set()
+	for emp in employees:
+		# Check if indeed empty (get_all filters are usually reliable, but let's be double sure)
+		val = frappe.db.get_value("Employee", emp.name, "attendance_device_id")
+		if not val:
+			next_id = get_next_attendance_id(exclude_ids)
+			frappe.db.set_value("Employee", emp.name, "attendance_device_id", str(next_id))
+			exclude_ids.add(next_id)
+
+	frappe.db.commit()
+
+
+@frappe.whitelist()
+def enqueue_fill_missing_attendance_ids():
+	"""
+	Manually enqueue the fill_missing_attendance_ids job.
+	"""
+	frappe.only_for("System Manager")
+	frappe.enqueue(
+		"hikvision_integration.api.fill_missing_attendance_ids",
+		queue="long",
+		timeout=3600,
+	)
+	return {"status": "enqueued", "message": _("Job to fill missing attendance IDs has been enqueued.")}
+
