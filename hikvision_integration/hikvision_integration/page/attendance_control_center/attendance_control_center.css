@@ -1,0 +1,186 @@
+/* Axon Command Center Page Styling */
+
+.axon-dashboard-container {
+    padding: 15px;
+    font-family: var(--font-stack, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
+}
+
+.axon-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 15px;
+    margin-bottom: 25px;
+}
+
+.axon-kpi-card {
+    background: var(--card-bg, #ffffff);
+    border: 1px solid var(--border-color, #e2e8f0);
+    border-radius: 12px;
+    padding: 18px 20px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.axon-kpi-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.06);
+}
+
+.axon-kpi-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.axon-kpi-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-muted, #64748b);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.axon-kpi-icon {
+    font-size: 20px;
+}
+
+.axon-kpi-val {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--text-color, #0f172a);
+}
+
+/* Badges */
+.axon-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.axon-badge-pending {
+    background: #fef3c7;
+    color: #92400e;
+    border: 1px solid #fde68a;
+}
+
+.axon-badge-approved {
+    background: #dcfce7;
+    color: #166534;
+    border: 1px solid #bbf7d0;
+}
+
+.axon-badge-locked {
+    background: #fee2e2;
+    color: #991b1b;
+    border: 1px solid #fecaca;
+}
+
+.axon-badge-ready {
+    background: #e0e7ff;
+    color: #3730a3;
+    border: 1px solid #c7d2fe;
+}
+
+/* Main Section */
+.axon-section {
+    background: var(--card-bg, #ffffff);
+    border: 1px solid var(--border-color, #e2e8f0);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 25px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+}
+
+.axon-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 18px;
+    border-bottom: 1px solid var(--border-color, #f1f5f9);
+    padding-bottom: 12px;
+}
+
+.axon-section-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text-color, #0f172a);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Table Design */
+.axon-table-wrapper {
+    overflow-x: auto;
+}
+
+.axon-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13.5px;
+}
+
+.axon-table th {
+    background: var(--control-bg, #f8fafc);
+    color: var(--text-muted, #475569);
+    font-weight: 600;
+    text-align: left;
+    padding: 12px 14px;
+    border-bottom: 2px solid var(--border-color, #e2e8f0);
+}
+
+.axon-table td {
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--border-color, #f1f5f9);
+    color: var(--text-color, #1e293b);
+}
+
+.axon-table tr:hover td {
+    background-color: var(--hover-bg, #f8fafc);
+}
+
+/* Buttons */
+.axon-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: background 0.15s ease;
+}
+
+.axon-btn-remote {
+    background: #10b981;
+    color: #ffffff;
+}
+
+.axon-btn-remote:hover {
+    background: #059669;
+}
+
+.axon-btn-absent {
+    background: #ef4444;
+    color: #ffffff;
+}
+
+.axon-btn-absent:hover {
+    background: #dc2626;
+}
+
+.axon-btn-primary {
+    background: #2563eb;
+    color: #ffffff;
+}
+
+.axon-btn-primary:hover {
+    background: #1d4ed8;
+}

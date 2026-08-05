@@ -354,3 +354,110 @@ def process_axon_attendance(from_date=None, to_date=None, employee=None):
 
 	frappe.db.commit()
 	return f"Axon Engine processed {total_processed} attendance sessions successfully."
+
+@frappe.whitelist()
+def get_pending_anomalies_count(company=None, start_date=None, end_date=None):
+	"""Returns the count of pending anomalies for a given company and date range."""
+	filters = {"status": "Pending Appeal"}
+	if start_date and end_date:
+		filters["attendance_date"] = ["between", [start_date, end_date]]
+		
+	anomalies = frappe.get_all("Attendance Anomaly", filters=filters, fields=["name", "employee"])
+	
+	if company:
+		valid_count = 0
+		for a in anomalies:
+			emp_comp = frappe.db.get_value("Employee", a["employee"], "company")
+			if not company or emp_comp == company:
+				valid_count += 1
+		return valid_count
+		
+	return len(anomalies)
+
+@frappe.whitelist()
+def get_anomalies_for_review(company=None, start_date=None, end_date=None):
+	"""Returns list of pending anomalies with employee, department, date, in_time."""
+	filters = {"status": ["in", ["Pending Appeal", "Under HR Review"]]}
+	if start_date and end_date:
+		filters["attendance_date"] = ["between", [start_date, end_date]]
+
+	anomalies = frappe.get_all("Attendance Anomaly",
+		filters=filters,
+		fields=["name", "employee", "employee_name", "attendance_date", "matched_shift", "orphan_in_time", "anomaly_reason", "status"],
+		order_by="attendance_date desc"
+	)
+
+	result = []
+	for a in anomalies:
+		emp_info = frappe.db.get_value("Employee", a["employee"], ["department", "company", "image"], as_dict=True) or {}
+		if company and emp_info.get("company") != company:
+			continue
+
+		a["department"] = emp_info.get("department", "Operations")
+		a["company"] = emp_info.get("company", "")
+		a["image"] = emp_info.get("image", "")
+		result.append(a)
+
+	return result
+
+@frappe.whitelist()
+def resolve_anomaly_batch(anomaly_names, action, hr_approved_out_time=None):
+	"""
+	Batch resolves anomalies:
+	action can be 'REMOTE_DUTY' (8h Present), 'UNEXCUSED_ABSENT' (Absent), or 'APPROVED'
+	"""
+	if isinstance(anomaly_names, str):
+		import json
+		anomaly_names = json.loads(anomaly_names)
+
+	updated = 0
+	for name in anomaly_names:
+		if not frappe.db.exists("Attendance Anomaly", name):
+			continue
+
+		anom = frappe.get_doc("Attendance Anomaly", name)
+		
+		if action == "REMOTE_DUTY":
+			in_t = get_datetime(anom.orphan_in_time)
+			auto_out = in_t + timedelta(hours=8)
+			anom.hr_approved_out_time = auto_out
+			anom.status = "Approved"
+			anom.employee_justification = "Approved as Remote Duty"
+			anom.save(ignore_permissions=True)
+			updated += 1
+		elif action == "UNEXCUSED_ABSENT":
+			anom.status = "Rejected"
+			anom.employee_justification = "Confirmed Unexcused Absence"
+			anom.save(ignore_permissions=True)
+			updated += 1
+		elif action == "APPROVED":
+			if hr_approved_out_time:
+				anom.hr_approved_out_time = hr_approved_out_time
+			anom.status = "Approved"
+			anom.save(ignore_permissions=True)
+			updated += 1
+
+	frappe.db.commit()
+	return {"updated": updated, "message": f"Successfully resolved {updated} anomalies."}
+
+@frappe.whitelist()
+def get_control_center_kpis(company=None, start_date=None, end_date=None):
+	"""Returns KPI summary stats for Attendance Control Center Dashboard."""
+	pending_count = get_pending_anomalies_count(company, start_date, end_date)
+	
+	app_filters = {"status": "Approved"}
+	if start_date and end_date:
+		app_filters["attendance_date"] = ["between", [start_date, end_date]]
+	approved_count = len(frappe.get_all("Attendance Anomaly", filters=app_filters, fields=["name"]))
+	
+	today_str = datetime.now().strftime("%Y-%m-%d")
+	today_swipes = len(frappe.get_all("Employee Checkin", filters={"time": [">=", f"{today_str} 00:00:00"]}, fields=["name"]))
+
+	readiness_status = "LOCKED" if pending_count > 0 else "READY"
+
+	return {
+		"today_swipes": today_swipes,
+		"pending_anomalies": pending_count,
+		"approved_anomalies": approved_count,
+		"readiness_status": readiness_status
+	}

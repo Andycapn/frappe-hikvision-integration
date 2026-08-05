@@ -10,14 +10,14 @@
    "label": "Hikvision Events by Device"
   }
  ],
-  "content": "[{\"id\":\"hik_nc_row\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Hikvision Events Today\",\"col\":3}},{\"id\":\"hik_nc_pending\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Hikvision Pending Events\",\"col\":3}},{\"id\":\"hik_nc_failed\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Hikvision Failed Events\",\"col\":3}},{\"id\":\"hik_nc_devices\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Hikvision Devices Online\",\"col\":3}},{\"id\":\"hik_sp1\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"hik_chart1\",\"type\":\"chart\",\"data\":{\"chart_name\":\"Hikvision Events Over Time\",\"col\":8}},{\"id\":\"hik_chart2\",\"type\":\"chart\",\"data\":{\"chart_name\":\"Hikvision Events by Device\",\"col\":4}},{\"id\":\"hik_sp2\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"hik_sc_devices\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Hikvision Device\",\"col\":2}},{\"id\":\"hik_sc_events\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Hikvision Event\",\"col\":2}},{\"id\":\"hik_sc_geofence\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Geofence Zone\",\"col\":2}},{\"id\":\"hik_sc_random\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Random Presence Check\",\"col\":3}},{\"id\":\"hik_sc_portal\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Mobile Portal\",\"col\":3}},{\"id\":\"hik_sp3\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"hik_card_devices\",\"type\":\"card\",\"data\":{\"card_name\":\"Devices\",\"col\":4}},{\"id\":\"hik_card_events\",\"type\":\"card\",\"data\":{\"card_name\":\"Events\",\"col\":4}}]",
+ "content": "[{\"id\":\"hik_nc_row\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Hikvision Events Today\",\"col\":3}},{\"id\":\"hik_nc_pending\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Hikvision Pending Events\",\"col\":3}},{\"id\":\"hik_nc_failed\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Hikvision Failed Events\",\"col\":3}},{\"id\":\"hik_nc_devices\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Hikvision Devices Online\",\"col\":3}},{\"id\":\"hik_sp1\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"hik_chart1\",\"type\":\"chart\",\"data\":{\"chart_name\":\"Hikvision Events Over Time\",\"col\":8}},{\"id\":\"hik_chart2\",\"type\":\"chart\",\"data\":{\"chart_name\":\"Hikvision Events by Device\",\"col\":4}},{\"id\":\"hik_sp2\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"hik_sc_control\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Attendance Control Center\",\"col\":4}},{\"id\":\"hik_sc_anomalies\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Attendance Anomaly\",\"col\":4}},{\"id\":\"hik_sc_payroll\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Payroll Entry\",\"col\":4}},{\"id\":\"hik_sp3\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"hik_sc_devices\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Hikvision Device\",\"col\":2}},{\"id\":\"hik_sc_events\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Hikvision Event\",\"col\":2}},{\"id\":\"hik_sc_geofence\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Geofence Zone\",\"col\":2}},{\"id\":\"hik_sc_random\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Random Presence Check\",\"col\":3}},{\"id\":\"hik_sc_portal\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Mobile Portal\",\"col\":3}}]",
  "creation": "2026-06-26 00:00:00.000000",
  "doctype": "Workspace",
  "icon": "shield",
  "idx": 0,
  "is_hidden": 0,
  "label": "Hikvision Integration",
- "modified": "2026-06-26 00:00:00.000000",
+ "modified": "2026-08-05 16:00:00.000000",
  "modified_by": "Administrator",
  "module": "Hikvision Integration",
  "name": "Hikvision Integration",
@@ -45,41 +45,61 @@
  "restrict_to_domain": "",
  "roles": [],
  "sequence_id": 99,
-  "shortcuts": [
-   {
-    "color": "Blue",
-    "doc_view": "List",
-    "label": "Hikvision Device",
-    "link_to": "Hikvision Device",
-    "type": "DocType"
-   },
-   {
-    "color": "Green",
-    "doc_view": "List",
-    "label": "Hikvision Event",
-    "link_to": "Hikvision Event",
-    "type": "DocType"
-   },
-   {
-    "color": "Yellow",
-    "doc_view": "List",
-    "label": "Geofence Zone",
-    "link_to": "Geofence Zone",
-    "type": "DocType"
-   },
-   {
-    "color": "Orange",
-    "doc_view": "List",
-    "label": "Random Presence Check",
-    "link_to": "Random Presence Check",
-    "type": "DocType"
-   },
-   {
-    "color": "Purple",
-    "label": "Mobile Portal",
-    "link_to": "/mobile-checkin",
-    "type": "URL"
-   }
-  ],
+ "shortcuts": [
+  {
+   "color": "Green",
+   "label": "🛡️ Attendance Control Center",
+   "link_to": "/app/attendance-control-center",
+   "type": "URL"
+  },
+  {
+   "color": "Yellow",
+   "doc_view": "List",
+   "label": "🟡 Attendance Anomalies",
+   "link_to": "Attendance Anomaly",
+   "type": "DocType"
+  },
+  {
+   "color": "Blue",
+   "doc_view": "List",
+   "label": "💼 Payroll Entry",
+   "link_to": "Payroll Entry",
+   "type": "DocType"
+  },
+  {
+   "color": "Blue",
+   "doc_view": "List",
+   "label": "Hikvision Device",
+   "link_to": "Hikvision Device",
+   "type": "DocType"
+  },
+  {
+   "color": "Green",
+   "doc_view": "List",
+   "label": "Hikvision Event",
+   "link_to": "Hikvision Event",
+   "type": "DocType"
+  },
+  {
+   "color": "Yellow",
+   "doc_view": "List",
+   "label": "Geofence Zone",
+   "link_to": "Geofence Zone",
+   "type": "DocType"
+  },
+  {
+   "color": "Orange",
+   "doc_view": "List",
+   "label": "Random Presence Check",
+   "link_to": "Random Presence Check",
+   "type": "DocType"
+  },
+  {
+   "color": "Purple",
+   "label": "Mobile Portal",
+   "link_to": "/mobile-checkin",
+   "type": "URL"
+  }
+ ],
  "title": "Hikvision Integration"
 }
