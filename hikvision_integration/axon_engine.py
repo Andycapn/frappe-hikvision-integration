@@ -224,32 +224,19 @@ def create_or_update_attendance(employee, company, attendance_date, status, in_t
 	
 	if existing:
 		att_name = existing[0]["name"]
-		docstatus = existing[0].get("docstatus", 0)
 		
-		if docstatus == 1:
-			frappe.db.set_value("Attendance", att_name, {
-				"status": status,
-				"in_time": in_time,
-				"out_time": out_time,
-				"shift": shift,
-				"working_hours": round(working_hours, 2),
-				"late_entry": late_entry,
-				"early_exit": early_exit,
-				"custom_is_anomaly": is_anomaly
-			})
-			return att_name
-		else:
-			att = frappe.get_doc("Attendance", att_name)
-			att.status = status
-			att.in_time = in_time
-			att.out_time = out_time
-			att.shift = shift
-			att.working_hours = round(working_hours, 2)
-			att.late_entry = late_entry
-			att.early_exit = early_exit
-			att.custom_is_anomaly = is_anomaly
-			att.save(ignore_permissions=True)
-			return att.name
+		frappe.db.set_value("Attendance", att_name, {
+			"status": status,
+			"in_time": in_time,
+			"out_time": out_time,
+			"shift": shift,
+			"working_hours": round(working_hours, 2),
+			"late_entry": late_entry,
+			"early_exit": early_exit,
+			"custom_is_anomaly": is_anomaly,
+			"docstatus": 1
+		})
+		return att_name
 	else:
 		att = frappe.get_doc({
 			"doctype": "Attendance",
@@ -263,7 +250,8 @@ def create_or_update_attendance(employee, company, attendance_date, status, in_t
 			"working_hours": round(working_hours, 2),
 			"late_entry": late_entry,
 			"early_exit": early_exit,
-			"custom_is_anomaly": is_anomaly
+			"custom_is_anomaly": is_anomaly,
+			"docstatus": 1
 		})
 		att.insert(ignore_permissions=True)
 		return att.name
