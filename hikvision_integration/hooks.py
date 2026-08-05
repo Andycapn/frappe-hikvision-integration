@@ -141,9 +141,6 @@ app_license = "mit"
 doc_events = {
 	"Employee": {
 		"before_insert": "hikvision_integration.api.auto_generate_attendance_id"
-	},
-	"Salary Slip": {
-		"before_save": "hikvision_integration.payroll.calculate_attendance_deduction"
 	}
 }
 
@@ -156,7 +153,8 @@ scheduler_events = {
 	],
 	"hourly": [
 		"hikvision_integration.api.process_unprocessed_events",
-		"hikvision_integration.api.fill_missing_attendance_ids"
+		"hikvision_integration.api.fill_missing_attendance_ids",
+		"hikvision_integration.axon_engine.process_axon_attendance"
 	]
 }
 

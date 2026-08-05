@@ -6,7 +6,7 @@
  "doctype": "Number Card",
  "document_type": "Hikvision Event",
  "dynamic_filters_json": "[]",
- "filters_json": "[[\"Hikvision Event\",\"event_time\",\"Today\",\"\"]]",
+ "filters_json": "[[\"Hikvision Event\",\"event_time\",\"Timespan\",\"today\"]]",
  "function": "Count",
  "idx": 0,
  "is_public": 1,
