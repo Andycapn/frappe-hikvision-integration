@@ -58,12 +58,22 @@ class AttendanceAnomaly(Document):
 			new_status = "Half Day"
 
 		# Update Attendance
-		att.status = new_status
-		att.out_time = out_time
-		att.working_hours = round(working_hours, 2)
-		att.late_entry = late_entry
-		att.early_exit = early_exit
-		att.custom_is_anomaly = 0
-		att.save(ignore_permissions=True)
+		if att.docstatus == 1:
+			frappe.db.set_value("Attendance", att.name, {
+				"status": new_status,
+				"out_time": out_time,
+				"working_hours": round(working_hours, 2),
+				"late_entry": late_entry,
+				"early_exit": early_exit,
+				"custom_is_anomaly": 0
+			})
+		else:
+			att.status = new_status
+			att.out_time = out_time
+			att.working_hours = round(working_hours, 2)
+			att.late_entry = late_entry
+			att.early_exit = early_exit
+			att.custom_is_anomaly = 0
+			att.save(ignore_permissions=True)
 
 		frappe.msgprint(_("Attendance {0} updated to {1} with {2:.2f} working hours.").format(att.name, new_status, working_hours))

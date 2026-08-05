@@ -40,6 +40,7 @@ def setup_custom_fields():
 				"label": "Is Anomaly",
 				"default": 0,
 				"read_only": 1,
+				"allow_on_submit": 1,
 				"insert_after": "status"
 			},
 			{
@@ -48,6 +49,7 @@ def setup_custom_fields():
 				"options": "Attendance Anomaly",
 				"label": "Anomaly Reference",
 				"read_only": 1,
+				"allow_on_submit": 1,
 				"insert_after": "custom_is_anomaly"
 			}
 		]
@@ -218,20 +220,36 @@ def create_or_update_attendance(employee, company, attendance_date, status, in_t
 			if (shift_end_dt - out_time).total_seconds() > (early_grace * 60):
 				early_exit = 1
 
-	existing = frappe.get_all("Attendance", filters={"employee": employee, "attendance_date": attendance_date}, fields=["name"])
+	existing = frappe.get_all("Attendance", filters={"employee": employee, "attendance_date": attendance_date}, fields=["name", "docstatus"])
 	
 	if existing:
-		att = frappe.get_doc("Attendance", existing[0]["name"])
-		att.status = status
-		att.in_time = in_time
-		att.out_time = out_time
-		att.shift = shift
-		att.working_hours = round(working_hours, 2)
-		att.late_entry = late_entry
-		att.early_exit = early_exit
-		att.custom_is_anomaly = is_anomaly
-		att.save(ignore_permissions=True)
-		return att.name
+		att_name = existing[0]["name"]
+		docstatus = existing[0].get("docstatus", 0)
+		
+		if docstatus == 1:
+			frappe.db.set_value("Attendance", att_name, {
+				"status": status,
+				"in_time": in_time,
+				"out_time": out_time,
+				"shift": shift,
+				"working_hours": round(working_hours, 2),
+				"late_entry": late_entry,
+				"early_exit": early_exit,
+				"custom_is_anomaly": is_anomaly
+			})
+			return att_name
+		else:
+			att = frappe.get_doc("Attendance", att_name)
+			att.status = status
+			att.in_time = in_time
+			att.out_time = out_time
+			att.shift = shift
+			att.working_hours = round(working_hours, 2)
+			att.late_entry = late_entry
+			att.early_exit = early_exit
+			att.custom_is_anomaly = is_anomaly
+			att.save(ignore_permissions=True)
+			return att.name
 	else:
 		att = frappe.get_doc({
 			"doctype": "Attendance",
