@@ -14,7 +14,7 @@
  "label": "Pending Events",
  "modified": "2026-06-26 00:00:00.000000",
  "modified_by": "Administrator",
- "module": "hikvision_integration",
+ "module": "Hikvision Integration",
  "name": "Hikvision Pending Events",
  "owner": "Administrator",
  "parent_document_type": "",

@@ -17,7 +17,7 @@
  "last_synced_on": "",
  "modified": "2026-06-26 00:00:00.000000",
  "modified_by": "Administrator",
- "module": "hikvision_integration",
+ "module": "Hikvision Integration",
  "name": "Hikvision Events by Device",
  "number_of_groups": 10,
  "owner": "Administrator",

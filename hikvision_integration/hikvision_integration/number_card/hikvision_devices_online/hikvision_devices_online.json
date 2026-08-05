@@ -14,7 +14,7 @@
  "label": "Active Devices",
  "modified": "2026-06-26 00:00:00.000000",
  "modified_by": "Administrator",
- "module": "hikvision_integration",
+ "module": "Hikvision Integration",
  "name": "Hikvision Devices Online",
  "owner": "Administrator",
  "parent_document_type": "",
