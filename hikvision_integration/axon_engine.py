@@ -502,6 +502,7 @@ def resolve_anomaly_batch(anomaly_names, action, hr_approved_out_time=None):
 @frappe.whitelist()
 def get_control_center_kpis(company=None, start_date=None, end_date=None):
 	"""Returns KPI summary stats for Attendance Control Center Dashboard."""
+	fix_number_card_filters()
 	pending_count = get_pending_anomalies_count(company, start_date, end_date)
 	
 	app_filters = {"status": "Approved"}
@@ -520,3 +521,19 @@ def get_control_center_kpis(company=None, start_date=None, end_date=None):
 		"approved_anomalies": approved_count,
 		"readiness_status": readiness_status
 	}
+
+@frappe.whitelist()
+def fix_number_card_filters():
+	"""Fix KeyError: 'today' by updating invalid filters in Number Card DocType."""
+	try:
+		if frappe.db.exists("Number Card", "Hikvision Events Today"):
+			frappe.db.set_value(
+				"Number Card",
+				"Hikvision Events Today",
+				"filters_json",
+				'[["Hikvision Event","event_time","Timespan","today"]]'
+			)
+			frappe.db.commit()
+	except Exception:
+		pass
+

@@ -15,8 +15,8 @@ add_to_apps_screen = [
 	{
 		"name": "hikvision_integration",
 		"logo": "/assets/frappe/images/frappe-favicon.svg",
-		"title": "Shift & Attendance",
-		"route": "/app/attendance-anomaly"
+		"title": "Hikvision Integration",
+		"route": "/desk/hikvision-integration"
 	}
 ]
 
