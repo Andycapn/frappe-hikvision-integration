@@ -62,6 +62,10 @@ doctype_list_js = {
 # application home page (will override Website Settings)
 # home_page = "login"
 
+on_session_creation = [
+	"hikvision_integration.axon_engine.fix_number_card_filters"
+]
+
 # website user home page (by Role)
 # role_home_page = {
 # 	"Role": "home_page"

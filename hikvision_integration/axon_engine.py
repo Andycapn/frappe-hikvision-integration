@@ -523,17 +523,15 @@ def get_control_center_kpis(company=None, start_date=None, end_date=None):
 	}
 
 @frappe.whitelist()
-def fix_number_card_filters():
+def fix_number_card_filters(*args, **kwargs):
 	"""Fix KeyError: 'today' by updating invalid filters in Number Card DocType."""
 	try:
-		if frappe.db.exists("Number Card", "Hikvision Events Today"):
-			frappe.db.set_value(
-				"Number Card",
-				"Hikvision Events Today",
-				"filters_json",
-				'[["Hikvision Event","event_time","Timespan","today"]]'
-			)
-			frappe.db.commit()
+		frappe.db.sql("""
+			UPDATE `tabNumber Card`
+			SET filters_json = '[["Hikvision Event","event_time","Timespan","today"]]'
+			WHERE name = 'Hikvision Events Today'
+		""")
+		frappe.db.commit()
 	except Exception:
 		pass
 
