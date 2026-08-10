@@ -173,16 +173,27 @@ def sessionize_checkins(employee, from_date=None, to_date=None):
 				
 			j += 1
 
+		if not t_out:
+			# Check if employee has a presence terminal swipe as proof-of-life fallback
+			presence_t = find_presence_fallback(employee, t_in, window_end)
+			if presence_t:
+				t_out = presence_t
+				session_type = "PRESENCE_FALLBACK"
+			else:
+				session_type = "ORPHAN"
+		else:
+			session_type = "COMPLETE"
+
 		if t_out:
 			sessions.append({
 				"in_time": t_in,
 				"out_time": t_out,
 				"in_name": anchor["name"],
 				"out_name": out_log_name,
-				"type": "COMPLETE"
+				"type": session_type
 			})
 		else:
-			# Orphaned IN
+			# Orphaned IN (No gate OUT punch and no presence swipe)
 			sessions.append({
 				"in_time": t_in,
 				"out_time": None,
@@ -193,6 +204,25 @@ def sessionize_checkins(employee, from_date=None, to_date=None):
 		i += 1
 
 	return sessions
+
+def find_presence_fallback(employee, t_in, window_end):
+	"""Find latest presence swipe (processed = 2) for employee within 14h window."""
+	emp_id = frappe.db.get_value("Employee", employee, "attendance_device_id") or employee
+	events = frappe.get_all("Hikvision Event",
+		filters={
+			"employee_no": ["in", [employee, emp_id]],
+			"event_time": ["between", [t_in, window_end]],
+			"processed": 2
+		},
+		fields=["event_time"],
+		order_by="event_time desc",
+		limit=1
+	)
+	if events:
+		pt = get_datetime(events[0]["event_time"])
+		if (pt - t_in).total_seconds() >= 3600:
+			return pt
+	return None
 
 def create_or_update_attendance(employee, company, attendance_date, status, in_time, out_time, shift, is_anomaly=0):
 	"""Generate or update Attendance document and ensure Shift Assignment exists for reports."""
