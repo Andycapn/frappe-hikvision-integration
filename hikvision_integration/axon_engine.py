@@ -195,7 +195,7 @@ def sessionize_checkins(employee, from_date=None, to_date=None):
 	return sessions
 
 def create_or_update_attendance(employee, company, attendance_date, status, in_time, out_time, shift, is_anomaly=0):
-	"""Generate or update Attendance document."""
+	"""Generate or update Attendance document and ensure Shift Assignment exists for reports."""
 	working_hours = 0.0
 	late_entry = 0
 	early_exit = 0
@@ -219,6 +219,10 @@ def create_or_update_attendance(employee, company, attendance_date, status, in_t
 			early_grace = sh_doc.early_exit_grace_period or 0
 			if (shift_end_dt - out_time).total_seconds() > (early_grace * 60):
 				early_exit = 1
+
+	# Ensure single-day Shift Assignment exists so standard Shift Attendance Report INNER JOIN succeeds
+	if shift:
+		ensure_shift_assignment(employee, company, attendance_date, shift)
 
 	existing = frappe.get_all("Attendance", filters={"employee": employee, "attendance_date": attendance_date}, fields=["name", "docstatus"])
 	
@@ -255,6 +259,31 @@ def create_or_update_attendance(employee, company, attendance_date, status, in_t
 		})
 		att.insert(ignore_permissions=True)
 		return att.name
+
+def ensure_shift_assignment(employee, company, attendance_date, shift_type):
+	"""Ensure single-day active Shift Assignment exists for report compatibility."""
+	exists = frappe.db.exists("Shift Assignment", {
+		"employee": employee,
+		"start_date": attendance_date,
+		"shift_type": shift_type,
+		"docstatus": 1
+	})
+	
+	if not exists:
+		try:
+			sa = frappe.get_doc({
+				"doctype": "Shift Assignment",
+				"employee": employee,
+				"company": company,
+				"shift_type": shift_type,
+				"start_date": attendance_date,
+				"end_date": attendance_date,
+				"status": "Active",
+				"docstatus": 1
+			})
+			sa.insert(ignore_permissions=True)
+		except Exception:
+			pass
 
 def create_attendance_anomaly(employee, attendance_date, matched_shift, orphan_in_time, attendance_reference):
 	"""Create custom Attendance Anomaly record for HR appeal."""

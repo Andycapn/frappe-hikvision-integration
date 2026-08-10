@@ -11,15 +11,14 @@ app_license = "mit"
 # required_apps = []
 
 # Each item in the list will be shown as an app in the apps page
-# add_to_apps_screen = [
-# 	{
-# 		"name": "hikvision_integration",
-# 		"logo": "/assets/hikvision_integration/logo.png",
-# 		"title": "Hikvision Integration",
-# 		"route": "/hikvision_integration",
-# 		"has_permission": "hikvision_integration.api.permission.has_app_permission"
-# 	}
-# ]
+add_to_apps_screen = [
+	{
+		"name": "hikvision_integration",
+		"logo": "/assets/frappe/images/frappe-favicon.svg",
+		"title": "Shift & Attendance",
+		"route": "/app/attendance-anomaly"
+	}
+]
 
 # Includes in <head>
 # ------------------
@@ -46,7 +45,9 @@ app_license = "mit"
 doctype_js = {
 	"Payroll Entry": "public/js/payroll_entry.js"
 }
-# doctype_list_js = {"doctype" : "public/js/doctype_list.js"}
+doctype_list_js = {
+	"Attendance Anomaly": "hikvision_integration/doctype/attendance_anomaly/attendance_anomaly_list.js"
+}
 # doctype_tree_js = {"doctype" : "public/js/doctype_tree.js"}
 # doctype_calendar_js = {"doctype" : "public/js/doctype_calendar.js"}
 
