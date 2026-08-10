@@ -17,7 +17,87 @@
  "idx": 0,
  "is_hidden": 0,
  "label": "Hikvision Integration",
- "modified": "2026-08-05 16:00:00.000000",
+ "links": [
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Exception Management & Payroll",
+   "type": "Card Header"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "🛡️ Attendance Control Center",
+   "link_count": 0,
+   "link_to": "attendance-control-center",
+   "link_type": "page",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "🟡 Attendance Anomalies",
+   "link_count": 0,
+   "link_to": "Attendance Anomaly",
+   "link_type": "doctype",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "💼 Payroll Entry",
+   "link_count": 0,
+   "link_to": "Payroll Entry",
+   "link_type": "doctype",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Biometric Hardware & Devices",
+   "type": "Card Header"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Hikvision Devices",
+   "link_count": 0,
+   "link_to": "Hikvision Device",
+   "link_type": "doctype",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Hikvision Raw Events",
+   "link_count": 0,
+   "link_to": "Hikvision Event",
+   "link_type": "doctype",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Random Presence Check",
+   "link_count": 0,
+   "link_to": "Random Presence Check",
+   "link_type": "doctype",
+   "onboard": 0,
+   "type": "Link"
+  }
+ ],
+ "modified": "2026-08-10 18:35:00.000000",
  "modified_by": "Administrator",
  "module": "Hikvision Integration",
  "name": "Hikvision Integration",
